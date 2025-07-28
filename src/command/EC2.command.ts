@@ -41,8 +41,13 @@ export const ec2Command : SlashCommand = {
             const state = interaction.options.getString("state");
             await interaction.reply(`EC2 상태 : ${state}`);
         } else if (subcommand === "list-up") {
-            const list = await ec2.describeInstances().promise();
-            await interaction.reply(`EC2 list : ${list}`);
+            try {
+                const list = await ec2.describeInstances().promise();
+                await interaction.reply(`EC2 list : ${JSON.stringify(list, null, 2)}`);
+            } catch (error) {
+                console.error('AWS Error:', error);
+                await interaction.reply("AWS 자격 증명이 설정되지 않았습니다. 환경 변수를 확인해주세요.");
+            }
         }
     }
 }   
