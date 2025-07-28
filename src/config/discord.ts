@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, Client, Interaction, GatewayIntentBits } from 'discord.js';
 import dotenv from 'dotenv';
-import commandRouter from '../router.Command/EC2.Router';
+import commandRouter from '../router.Command/router';
 
 dotenv.config();
 
