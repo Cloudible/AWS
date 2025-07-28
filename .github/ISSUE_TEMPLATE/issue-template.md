@@ -7,14 +7,6 @@ assignees: ''
 
 ---
 
----
-name: Coffect 기본 이슈 템플릿
-about: 이슈 템플릿입니다.
-title: ''
-labels: ''
-assignees: ''
----
-
 ## ✅ 작업 유형 (Tag)
 
 - [ ] ✨ Feature 
