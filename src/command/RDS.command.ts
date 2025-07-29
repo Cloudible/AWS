@@ -8,14 +8,18 @@ export const rdsCommand : SlashCommand = {
         {
             name : "list-up",
             description : "RDS 목록 조회",
-            type : ApplicationCommandOptionType.Subcommand
+            type : ApplicationCommandOptionType.SubcommandGroup,
+            options : [
+
+            ]
         }
     ],
     execute : async(client, interaction) => {
         const subcommand = interaction.options.getSubcommand();
         
         if (subcommand === "list-up") {
-            await interaction.reply("RDS 목록을 조회합니다.");
+            const state = interaction.options.getString("state");
+            await interaction.reply(`RDS list : ${state}`);
         }
     }
 }   
