@@ -47,12 +47,6 @@ export const awsCommand : SlashCommand = {
                     description : "AWS Secret Access Key",
                     type : ApplicationCommandOptionType.String,
                     required : true
-                },
-                {
-                    name : "region",
-                    description : "AWS 리전 (기본값: us-east-1)",
-                    type : ApplicationCommandOptionType.String,
-                    required : false
                 }
             ]
         },
@@ -74,17 +68,25 @@ export const awsCommand : SlashCommand = {
                     required : true
                 },
                 {
-                    name : "region",
-                    description : "AWS 리전 (기본값: us-east-1)",
+                    name : "password",
+                    description : "자격 증명 암호화 파일 비밀번호",
                     type : ApplicationCommandOptionType.String,
-                    required : false
+                    required : true
                 }
             ]
         },
         {
             name : "load-credentials",
             description : "저장된 자격 증명 불러오기",
-            type : ApplicationCommandOptionType.Subcommand
+            type : ApplicationCommandOptionType.Subcommand,
+            options : [
+                {
+                    name : "password",
+                    description : "자격 증명 암호화 파일 비밀번호",
+                    type : ApplicationCommandOptionType.String,
+                    required : true
+                }
+            ]
         },
         {
             name : "saved-credentials",
@@ -148,9 +150,8 @@ export const awsCommand : SlashCommand = {
             } else if(subcommand === "configure") {
                 const accessKeyId = interaction.options.getString("access-key-id");
                 const secretAccessKey = interaction.options.getString("secret-access-key");
-                const region = interaction.options.getString("region") || "us-east-1";
                 
-                configureAWSCredentials(userId, accessKeyId!, secretAccessKey!, region);
+                configureAWSCredentials(userId, accessKeyId!, secretAccessKey!);
                 await interaction.reply({
                     content: `✅ 자격 증명 설정 완료 (사용자: <@${userId}>)`,
                     flags: 64
@@ -159,9 +160,9 @@ export const awsCommand : SlashCommand = {
             } else if(subcommand === "save-credentials") {
                 const accessKeyId = interaction.options.getString("access-key-id");
                 const secretAccessKey = interaction.options.getString("secret-access-key");
-                const region = interaction.options.getString("region") || "us-east-1";
+                const password = interaction.options.getString("password");
                 
-                const success = saveCredentials(userId, accessKeyId!, secretAccessKey!, region);
+                const success = saveCredentials(userId, accessKeyId!, secretAccessKey!, password!);
                 
                 if(success) {
                     await interaction.reply({
@@ -176,7 +177,8 @@ export const awsCommand : SlashCommand = {
                 }
                 
             } else if(subcommand === "load-credentials") {
-                const credentials = loadCredentials(userId);
+                const password = interaction.options.getString("password");
+                const credentials = loadCredentials(userId, password!);
                 
                 if(credentials) {
                     await interaction.reply({
@@ -195,7 +197,7 @@ export const awsCommand : SlashCommand = {
                 
                 if(credentials) {
                     await interaction.reply({
-                        content: `📁 저장된 자격 증명:\n\n**사용자:** <@${userId}>\n**Access Key ID:** ${credentials.accessKeyId}\n**Secret Access Key:** ${credentials.secretAccessKey}\n**리전:** ${credentials.region}`,
+                        content: `📁 저장된 자격 증명:\n\n**사용자:** <@${userId}>\n**Access Key ID:** ${credentials.accessKeyId}\n**Secret Access Key:** ${credentials.secretAccessKey}\n`,
                         flags: 64
                     });
                 } else {

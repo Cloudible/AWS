@@ -1,6 +1,7 @@
 import AWS from "aws-sdk";
 import fs from 'fs';
 import path from 'path';
+import { encryptCredentials, decryptCredentials } from '../middleWare/encryption';
 
 // 사용자별 자격 증명 저장 디렉토리
 const CREDENTIALS_DIR = path.join(process.cwd(), 'aws-credentials');
@@ -55,12 +56,20 @@ const getUserAWSInstance = (userId: string) => {
 };
 
 // 자격 증명을 파일에 저장 (사용자별)
-export const saveCredentials = (userId: string, accessKeyId: string, secretAccessKey: string, region: string = 'us-east-1') => {
+export const saveCredentials = (userId: string, accessKeyId: string, secretAccessKey: string, password: string) => {
     try {
-        const credentials = {
+        // 자격 증명을 JSON 형태로 변환
+        const credentialsData = JSON.stringify({
             accessKeyId,
             secretAccessKey,
-            region,
+            savedAt: new Date().toISOString()
+        });
+        
+        // 암호화
+        const encryptedCredentials = encryptCredentials(credentialsData, password);
+        
+        const credentials = {
+            encryptedData: encryptedCredentials,
             savedAt: new Date().toISOString()
         };
         
@@ -70,10 +79,10 @@ export const saveCredentials = (userId: string, accessKeyId: string, secretAcces
         // 파일 권한 설정 (600: 소유자만 읽기/쓰기)
         fs.chmodSync(filePath, 0o600);
         
-        // 사용자별 AWS 인스턴스 생성
-        createUserAWSInstance(userId, accessKeyId, secretAccessKey, region);
+        // 사용자별 AWS 인스턴스 생성 (원본 자격 증명 사용)
+        createUserAWSInstance(userId, accessKeyId, secretAccessKey);
         
-        console.log(`자격 증명이 파일에 저장되었습니다. (사용자: ${userId})`);
+        console.log(`자격 증명이 암호화되어 파일에 저장되었습니다. (사용자: ${userId})`);
         console.log(`저장 위치 : ${filePath}`);
         return true;
     } catch (error) {
@@ -83,7 +92,7 @@ export const saveCredentials = (userId: string, accessKeyId: string, secretAcces
 };
 
 // 파일에서 자격 증명 불러오기 (사용자별)
-export const loadCredentials = (userId: string) => {
+export const loadCredentials = (userId: string, password: string) => {
     try {
         const filePath = getUserCredentialsFile(userId);
         
@@ -94,11 +103,15 @@ export const loadCredentials = (userId: string) => {
         const data = fs.readFileSync(filePath, 'utf8');
         const credentials = JSON.parse(data);
         
-        // 사용자별 AWS 인스턴스 생성
-        createUserAWSInstance(userId, credentials.accessKeyId, credentials.secretAccessKey, credentials.region);
+        // 암호화된 데이터 복호화
+        const decryptedData = decryptCredentials(credentials.encryptedData, password);
+        const decryptedCredentials = JSON.parse(decryptedData);
         
-        console.log(`파일에서 자격 증명을 불러왔습니다. (사용자: ${userId})`);
-        return credentials;
+        // 사용자별 AWS 인스턴스 생성
+        createUserAWSInstance(userId, decryptedCredentials.accessKeyId, decryptedCredentials.secretAccessKey);
+        
+        console.log(`파일에서 자격 증명을 복호화하여 불러왔습니다. (사용자: ${userId})`);
+        return decryptedCredentials;
     } catch (error) {
         console.error('자격 증명 불러오기 실패:', error);
         return null;
@@ -118,10 +131,10 @@ export const getSavedCredentials = (userId: string) => {
         const credentials = JSON.parse(data);
         
         return {
-            accessKeyId: credentials.accessKeyId,
-            secretAccessKey: '***', // 보안상 마스킹
-            region: credentials.region,
-            savedAt: credentials.savedAt
+            accessKeyId: '***', // 암호화되어 있어서 마스킹
+            secretAccessKey: '***', // 암호화되어 있어서 마스킹
+            savedAt: credentials.savedAt,
+            isEncrypted: true
         };
     } catch (error) {
         return null;
