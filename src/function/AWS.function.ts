@@ -20,12 +20,30 @@ const userAWSInstances = new Map<string, any>();
 
 // 사용자별 AWS 인스턴스 생성
 const createUserAWSInstance = (userId: string, accessKeyId: string, secretAccessKey: string, region: string = 'us-east-1') => {
-    const awsInstance = AWS;
-    awsInstance.config.update({
-        accessKeyId,
-        secretAccessKey,
-        region
-    });
+    // 완전히 새로운 AWS 인스턴스 생성
+    const awsInstance = {
+        config: {
+            credentials: {
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey
+            },
+            region: region
+        },
+        STS: function() {
+            return new AWS.STS({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        },
+        IAM: function() {
+            return new AWS.IAM({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        }
+    };
     
     userAWSInstances.set(userId, awsInstance);
     return awsInstance;
@@ -155,7 +173,7 @@ export const validateCredentials = async (userId: string) => {
         }
 
         const awsInstance = getUserAWSInstance(userId);
-        const sts = new awsInstance.STS();
+        const sts = awsInstance.STS();
         const response = await sts.getCallerIdentity().promise();
         return {
             valid: true,
@@ -180,7 +198,7 @@ export const getAccountInfo = async (userId: string) => {
         }
 
         const awsInstance = getUserAWSInstance(userId);
-        const sts = new awsInstance.STS();
+        const sts = awsInstance.STS();
         const response = await sts.getCallerIdentity().promise();
         return response;
     } catch (error) {
@@ -197,7 +215,7 @@ export const getIAMUserInfo = async (userId: string, username: string) => {
         }
 
         const awsInstance = getUserAWSInstance(userId);
-        const iam = new awsInstance.IAM();
+        const iam = awsInstance.IAM();
         
         const params = {
             UserName: username
@@ -226,7 +244,7 @@ export const getIAMList = async (userId: string) => {
         }
 
         const awsInstance = getUserAWSInstance(userId);
-        const iam = new awsInstance.IAM();
+        const iam = awsInstance.IAM();
         const params = {
             MaxItems: 50 // 더 적은 수로 제한
         };
@@ -278,20 +296,12 @@ export const generateAWSConsoleUrl = (region: string = 'us-east-1') => {
 
 // AWS CLI 자격 증명 설정 (사용자별)
 export const configureAWSCredentials = (userId: string, accessKeyId: string, secretAccessKey: string, region: string = 'us-east-1', sessionToken?: string) => {
-    const credentials = new AWS.Credentials({
+    // 사용자별 AWS 인스턴스 생성
+    createUserAWSInstance(userId, accessKeyId, secretAccessKey, region);
+    
+    return {
         accessKeyId,
         secretAccessKey,
         sessionToken
-    });
-
-    const awsInstance = AWS;
-    awsInstance.config.update({
-        credentials,
-        region
-    });
-
-    // 사용자별 AWS 인스턴스 저장
-    userAWSInstances.set(userId, awsInstance);
-
-    return credentials;
+    };
 };
