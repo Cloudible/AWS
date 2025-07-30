@@ -8,7 +8,7 @@ const generateKey = (password: string, salt: Buffer) => {
 // 암호화 함수
 export const encryptCredentials = (text: string, password: string): string => {
     const salt = crypto.randomBytes(16);
-    const key = generateKey(password, salt);
+    const key = generateKey(password, salt); // Password 토대로 Key 생성
     const iv = crypto.randomBytes(16);
     
     const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);

@@ -17,7 +17,7 @@ const getUserCredentialsFile = (userId: string) => {
 };
 
 // 사용자별 AWS 인스턴스 저장
-const userAWSInstances = new Map<string, any>();
+const userAWSInstances = new Map<string, any>(); // userId와 인스턴스 값을 mapping
 
 // 사용자별 AWS 인스턴스 생성
 const createUserAWSInstance = (userId: string, accessKeyId: string, secretAccessKey: string, region: string = 'us-east-1') => {
