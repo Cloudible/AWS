@@ -3,10 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.configureAWSCredentials = exports.generateAWSConsoleUrl = exports.getCurrentCredentials = exports.getIAMList = exports.getIAMUserInfo = exports.getAccountInfo = exports.validateCredentials = exports.checkCredentials = exports.deleteCredentials = exports.getSavedCredentials = exports.loadCredentials = exports.saveCredentials = void 0;
+exports.configureAWSCredentials = exports.generateAWSConsoleUrl = exports.getCurrentCredentials = exports.getIAMList = exports.getIAMUserInfo = exports.getAccountInfo = exports.validateCredentials = exports.checkCredentials = exports.deleteCredentials = exports.getSavedCredentials = exports.loadCredentials = exports.saveCredentials = exports.getUserAWSInstance = void 0;
 const aws_sdk_1 = __importDefault(require("aws-sdk"));
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const encryption_1 = require("../middleWare/encryption");
 // 사용자별 자격 증명 저장 디렉토리
 const CREDENTIALS_DIR = path_1.default.join(process.cwd(), 'aws-credentials');
 // 디렉토리가 없으면 생성
@@ -18,15 +19,40 @@ const getUserCredentialsFile = (userId) => {
     return path_1.default.join(CREDENTIALS_DIR, `user-${userId}.json`);
 };
 // 사용자별 AWS 인스턴스 저장
-const userAWSInstances = new Map();
+const userAWSInstances = new Map(); // userId와 인스턴스 값을 mapping
 // 사용자별 AWS 인스턴스 생성
 const createUserAWSInstance = (userId, accessKeyId, secretAccessKey, region = 'us-east-1') => {
-    const awsInstance = aws_sdk_1.default;
-    awsInstance.config.update({
-        accessKeyId,
-        secretAccessKey,
-        region
-    });
+    // 완전히 새로운 AWS 인스턴스 생성
+    const awsInstance = {
+        config: {
+            credentials: {
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey
+            },
+            region: region
+        },
+        STS: function () {
+            return new aws_sdk_1.default.STS({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        },
+        IAM: function () {
+            return new aws_sdk_1.default.IAM({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        },
+        EC2: function (region) {
+            return new aws_sdk_1.default.EC2({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        }
+    };
     userAWSInstances.set(userId, awsInstance);
     return awsInstance;
 };
@@ -34,22 +60,29 @@ const createUserAWSInstance = (userId, accessKeyId, secretAccessKey, region = 'u
 const getUserAWSInstance = (userId) => {
     return userAWSInstances.get(userId);
 };
+exports.getUserAWSInstance = getUserAWSInstance;
 // 자격 증명을 파일에 저장 (사용자별)
-const saveCredentials = (userId, accessKeyId, secretAccessKey, region = 'us-east-1') => {
+const saveCredentials = (userId, accessKeyId, secretAccessKey, password) => {
     try {
-        const credentials = {
+        // 자격 증명을 JSON 형태로 변환
+        const credentialsData = JSON.stringify({
             accessKeyId,
             secretAccessKey,
-            region,
+            savedAt: new Date().toISOString()
+        });
+        // 암호화
+        const encryptedCredentials = (0, encryption_1.encryptCredentials)(credentialsData, password);
+        const credentials = {
+            encryptedData: encryptedCredentials,
             savedAt: new Date().toISOString()
         };
         const filePath = getUserCredentialsFile(userId);
         fs_1.default.writeFileSync(filePath, JSON.stringify(credentials, null, 2));
         // 파일 권한 설정 (600: 소유자만 읽기/쓰기)
         fs_1.default.chmodSync(filePath, 0o600);
-        // 사용자별 AWS 인스턴스 생성
-        createUserAWSInstance(userId, accessKeyId, secretAccessKey, region);
-        console.log(`자격 증명이 파일에 저장되었습니다. (사용자: ${userId})`);
+        // 사용자별 AWS 인스턴스 생성 (원본 자격 증명 사용)
+        createUserAWSInstance(userId, accessKeyId, secretAccessKey);
+        console.log(`자격 증명이 암호화되어 파일에 저장되었습니다. (사용자: ${userId})`);
         console.log(`저장 위치 : ${filePath}`);
         return true;
     }
@@ -60,7 +93,7 @@ const saveCredentials = (userId, accessKeyId, secretAccessKey, region = 'us-east
 };
 exports.saveCredentials = saveCredentials;
 // 파일에서 자격 증명 불러오기 (사용자별)
-const loadCredentials = (userId) => {
+const loadCredentials = (userId, password) => {
     try {
         const filePath = getUserCredentialsFile(userId);
         if (!fs_1.default.existsSync(filePath)) {
@@ -68,10 +101,13 @@ const loadCredentials = (userId) => {
         }
         const data = fs_1.default.readFileSync(filePath, 'utf8');
         const credentials = JSON.parse(data);
+        // 암호화된 데이터 복호화
+        const decryptedData = (0, encryption_1.decryptCredentials)(credentials.encryptedData, password);
+        const decryptedCredentials = JSON.parse(decryptedData);
         // 사용자별 AWS 인스턴스 생성
-        createUserAWSInstance(userId, credentials.accessKeyId, credentials.secretAccessKey, credentials.region);
-        console.log(`파일에서 자격 증명을 불러왔습니다. (사용자: ${userId})`);
-        return credentials;
+        createUserAWSInstance(userId, decryptedCredentials.accessKeyId, decryptedCredentials.secretAccessKey);
+        console.log(`파일에서 자격 증명을 복호화하여 불러왔습니다. (사용자: ${userId})`);
+        return decryptedCredentials;
     }
     catch (error) {
         console.error('자격 증명 불러오기 실패:', error);
@@ -89,10 +125,10 @@ const getSavedCredentials = (userId) => {
         const data = fs_1.default.readFileSync(filePath, 'utf8');
         const credentials = JSON.parse(data);
         return {
-            accessKeyId: credentials.accessKeyId,
-            secretAccessKey: '***', // 보안상 마스킹
-            region: credentials.region,
-            savedAt: credentials.savedAt
+            accessKeyId: '***', // 암호화되어 있어서 마스킹
+            secretAccessKey: '***', // 암호화되어 있어서 마스킹
+            savedAt: credentials.savedAt,
+            isEncrypted: true
         };
     }
     catch (error) {
@@ -121,7 +157,7 @@ const deleteCredentials = (userId) => {
 exports.deleteCredentials = deleteCredentials;
 // 자격 증명이 설정되어 있는지 확인 (사용자별)
 const checkCredentials = (userId) => {
-    const awsInstance = getUserAWSInstance(userId);
+    const awsInstance = (0, exports.getUserAWSInstance)(userId);
     if (!awsInstance) {
         return false;
     }
@@ -142,8 +178,8 @@ const validateCredentials = async (userId) => {
                 error: '자격 증명이 설정되지 않았습니다. /aws configure 또는 /aws load-credentials 명령어로 자격 증명을 설정하세요.'
             };
         }
-        const awsInstance = getUserAWSInstance(userId);
-        const sts = new awsInstance.STS();
+        const awsInstance = (0, exports.getUserAWSInstance)(userId);
+        const sts = awsInstance.STS();
         const response = await sts.getCallerIdentity().promise();
         return {
             valid: true,
@@ -167,8 +203,8 @@ const getAccountInfo = async (userId) => {
         if (!(0, exports.checkCredentials)(userId)) {
             throw new Error('자격 증명이 설정되지 않았습니다. /aws configure 또는 /aws load-credentials 명령어로 자격 증명을 설정하세요.');
         }
-        const awsInstance = getUserAWSInstance(userId);
-        const sts = new awsInstance.STS();
+        const awsInstance = (0, exports.getUserAWSInstance)(userId);
+        const sts = awsInstance.STS();
         const response = await sts.getCallerIdentity().promise();
         return response;
     }
@@ -184,8 +220,8 @@ const getIAMUserInfo = async (userId, username) => {
         if (!(0, exports.checkCredentials)(userId)) {
             throw new Error('자격 증명이 설정되지 않았습니다. /aws configure 또는 /aws load-credentials 명령어로 자격 증명을 설정하세요.');
         }
-        const awsInstance = getUserAWSInstance(userId);
-        const iam = new awsInstance.IAM();
+        const awsInstance = (0, exports.getUserAWSInstance)(userId);
+        const iam = awsInstance.IAM();
         const params = {
             UserName: username
         };
@@ -208,8 +244,8 @@ const getIAMList = async (userId) => {
         if (!(0, exports.checkCredentials)(userId)) {
             return '자격 증명이 설정되지 않았습니다.\n\n**해결 방법:**\n1. /aws configure 명령어로 자격 증명을 설정하세요\n2. 또는 /aws load-credentials 명령어로 저장된 자격 증명을 불러오세요';
         }
-        const awsInstance = getUserAWSInstance(userId);
-        const iam = new awsInstance.IAM();
+        const awsInstance = (0, exports.getUserAWSInstance)(userId);
+        const iam = awsInstance.IAM();
         const params = {
             MaxItems: 50 // 더 적은 수로 제한
         };
@@ -228,7 +264,7 @@ const getIAMList = async (userId) => {
 exports.getIAMList = getIAMList;
 // 현재 설정된 자격 증명 정보 가져오기 (사용자별)
 const getCurrentCredentials = (userId) => {
-    const awsInstance = getUserAWSInstance(userId);
+    const awsInstance = (0, exports.getUserAWSInstance)(userId);
     if (!awsInstance) {
         return null;
     }
@@ -255,18 +291,12 @@ const generateAWSConsoleUrl = (region = 'us-east-1') => {
 exports.generateAWSConsoleUrl = generateAWSConsoleUrl;
 // AWS CLI 자격 증명 설정 (사용자별)
 const configureAWSCredentials = (userId, accessKeyId, secretAccessKey, region = 'us-east-1', sessionToken) => {
-    const credentials = new aws_sdk_1.default.Credentials({
+    // 사용자별 AWS 인스턴스 생성
+    createUserAWSInstance(userId, accessKeyId, secretAccessKey, region);
+    return {
         accessKeyId,
         secretAccessKey,
         sessionToken
-    });
-    const awsInstance = aws_sdk_1.default;
-    awsInstance.config.update({
-        credentials,
-        region
-    });
-    // 사용자별 AWS 인스턴스 저장
-    userAWSInstances.set(userId, awsInstance);
-    return credentials;
+    };
 };
 exports.configureAWSCredentials = configureAWSCredentials;

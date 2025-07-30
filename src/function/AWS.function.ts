@@ -43,7 +43,14 @@ const createUserAWSInstance = (userId: string, accessKeyId: string, secretAccess
                 secretAccessKey: secretAccessKey,
                 region: region
             });
-        }
+        },
+        EC2: function(region: string) { // EC2 권한 추가
+            return new AWS.EC2({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        }   
     };
     
     userAWSInstances.set(userId, awsInstance);
@@ -51,7 +58,7 @@ const createUserAWSInstance = (userId: string, accessKeyId: string, secretAccess
 };
 
 // 사용자별 AWS 인스턴스 가져오기
-const getUserAWSInstance = (userId: string) => {
+export const getUserAWSInstance = (userId: string) => {
     return userAWSInstances.get(userId);
 };
 

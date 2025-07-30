@@ -36,12 +36,6 @@ exports.awsCommand = {
                     description: "AWS Secret Access Key",
                     type: discord_js_1.ApplicationCommandOptionType.String,
                     required: true
-                },
-                {
-                    name: "region",
-                    description: "AWS 리전 (기본값: us-east-1)",
-                    type: discord_js_1.ApplicationCommandOptionType.String,
-                    required: false
                 }
             ]
         },
@@ -63,17 +57,25 @@ exports.awsCommand = {
                     required: true
                 },
                 {
-                    name: "region",
-                    description: "AWS 리전 (기본값: us-east-1)",
+                    name: "password",
+                    description: "자격 증명 암호화 파일 비밀번호",
                     type: discord_js_1.ApplicationCommandOptionType.String,
-                    required: false
+                    required: true
                 }
             ]
         },
         {
             name: "load-credentials",
             description: "저장된 자격 증명 불러오기",
-            type: discord_js_1.ApplicationCommandOptionType.Subcommand
+            type: discord_js_1.ApplicationCommandOptionType.Subcommand,
+            options: [
+                {
+                    name: "password",
+                    description: "자격 증명 암호화 파일 비밀번호",
+                    type: discord_js_1.ApplicationCommandOptionType.String,
+                    required: true
+                }
+            ]
         },
         {
             name: "saved-credentials",
@@ -134,8 +136,7 @@ exports.awsCommand = {
             else if (subcommand === "configure") {
                 const accessKeyId = interaction.options.getString("access-key-id");
                 const secretAccessKey = interaction.options.getString("secret-access-key");
-                const region = interaction.options.getString("region") || "us-east-1";
-                (0, AWS_function_1.configureAWSCredentials)(userId, accessKeyId, secretAccessKey, region);
+                (0, AWS_function_1.configureAWSCredentials)(userId, accessKeyId, secretAccessKey);
                 await interaction.reply({
                     content: `✅ 자격 증명 설정 완료 (사용자: <@${userId}>)`,
                     flags: 64
@@ -144,8 +145,8 @@ exports.awsCommand = {
             else if (subcommand === "save-credentials") {
                 const accessKeyId = interaction.options.getString("access-key-id");
                 const secretAccessKey = interaction.options.getString("secret-access-key");
-                const region = interaction.options.getString("region") || "us-east-1";
-                const success = (0, AWS_function_1.saveCredentials)(userId, accessKeyId, secretAccessKey, region);
+                const password = interaction.options.getString("password");
+                const success = (0, AWS_function_1.saveCredentials)(userId, accessKeyId, secretAccessKey, password);
                 if (success) {
                     await interaction.reply({
                         content: `✅ 자격 증명 저장 완료 (사용자: <@${userId}>)`,
@@ -160,7 +161,8 @@ exports.awsCommand = {
                 }
             }
             else if (subcommand === "load-credentials") {
-                const credentials = (0, AWS_function_1.loadCredentials)(userId);
+                const password = interaction.options.getString("password");
+                const credentials = (0, AWS_function_1.loadCredentials)(userId, password);
                 if (credentials) {
                     await interaction.reply({
                         content: `✅ 자격 증명 불러오기 완료 (사용자: <@${userId}>)`,
@@ -178,7 +180,7 @@ exports.awsCommand = {
                 const credentials = (0, AWS_function_1.getSavedCredentials)(userId);
                 if (credentials) {
                     await interaction.reply({
-                        content: `📁 저장된 자격 증명:\n\n**사용자:** <@${userId}>\n**Access Key ID:** ${credentials.accessKeyId}\n**Secret Access Key:** ${credentials.secretAccessKey}\n**리전:** ${credentials.region}`,
+                        content: `📁 저장된 자격 증명:\n\n**사용자:** <@${userId}>\n**Access Key ID:** ${credentials.accessKeyId}\n**Secret Access Key:** ${credentials.secretAccessKey}\n`,
                         flags: 64
                     });
                 }
