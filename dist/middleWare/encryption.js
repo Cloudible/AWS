@@ -12,7 +12,7 @@ const generateKey = (password, salt) => {
 // 암호화 함수
 const encryptCredentials = (text, password) => {
     const salt = crypto_1.default.randomBytes(16);
-    const key = generateKey(password, salt);
+    const key = generateKey(password, salt); // Password 토대로 Key 생성
     const iv = crypto_1.default.randomBytes(16);
     const cipher = crypto_1.default.createCipheriv('aes-256-cbc', key, iv);
     let encrypted = cipher.update(text, 'utf8', 'hex');
