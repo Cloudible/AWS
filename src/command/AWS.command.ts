@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType } from "discord.js";
+import { ApplicationCommandOptionType, Options } from "discord.js";
 import { SlashCommand } from "../DTO/slashCommand.DTO";
 import { 
     generateAWSConsoleUrl,
@@ -91,7 +91,15 @@ export const awsCommand : SlashCommand = {
         {
             name : "saved-credentials",
             description : "저장된 자격 증명 정보 확인",
-            type : ApplicationCommandOptionType.Subcommand
+            type : ApplicationCommandOptionType.Subcommand,
+            options : [
+                {
+                    name : "password",
+                    description : "자격 증명 암호화 파일 비밀번호",
+                    type : ApplicationCommandOptionType.String,
+                    required : true
+                }
+            ]
         },
         {
             name : "delete-credentials",
@@ -193,7 +201,9 @@ export const awsCommand : SlashCommand = {
                 }
                 
             } else if(subcommand === "saved-credentials") {
-                const credentials = getSavedCredentials(userId);
+                const password = interaction.options.getString("password");
+
+                const credentials = getSavedCredentials(userId, password!);
                 
                 if(credentials) {
                     await interaction.reply({

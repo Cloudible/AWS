@@ -116,7 +116,7 @@ const loadCredentials = (userId, password) => {
 };
 exports.loadCredentials = loadCredentials;
 // 저장된 자격 증명 정보 확인 (사용자별)
-const getSavedCredentials = (userId) => {
+const getSavedCredentials = (userId, password) => {
     try {
         const filePath = getUserCredentialsFile(userId);
         if (!fs_1.default.existsSync(filePath)) {
@@ -124,9 +124,11 @@ const getSavedCredentials = (userId) => {
         }
         const data = fs_1.default.readFileSync(filePath, 'utf8');
         const credentials = JSON.parse(data);
+        const decryptedData = (0, encryption_1.decryptCredentials)(credentials.encryptedData, password);
+        const decryptedCredentials = JSON.parse(decryptedData);
         return {
-            accessKeyId: '***', // 암호화되어 있어서 마스킹
-            secretAccessKey: '***', // 암호화되어 있어서 마스킹
+            accessKeyId: decryptedCredentials.accessKeyId,
+            secretAccessKey: decryptedCredentials.secretAccessKey,
             savedAt: credentials.savedAt,
             isEncrypted: true
         };
