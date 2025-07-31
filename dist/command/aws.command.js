@@ -80,7 +80,15 @@ exports.awsCommand = {
         {
             name: "saved-credentials",
             description: "저장된 자격 증명 정보 확인",
-            type: discord_js_1.ApplicationCommandOptionType.Subcommand
+            type: discord_js_1.ApplicationCommandOptionType.Subcommand,
+            options: [
+                {
+                    name: "password",
+                    description: "자격 증명 암호화 파일 비밀번호",
+                    type: discord_js_1.ApplicationCommandOptionType.String,
+                    required: true
+                }
+            ]
         },
         {
             name: "delete-credentials",
@@ -177,7 +185,8 @@ exports.awsCommand = {
                 }
             }
             else if (subcommand === "saved-credentials") {
-                const credentials = (0, AWS_function_1.getSavedCredentials)(userId);
+                const password = interaction.options.getString("password");
+                const credentials = (0, AWS_function_1.getSavedCredentials)(userId, password);
                 if (credentials) {
                     await interaction.reply({
                         content: `📁 저장된 자격 증명:\n\n**사용자:** <@${userId}>\n**Access Key ID:** ${credentials.accessKeyId}\n**Secret Access Key:** ${credentials.secretAccessKey}\n`,

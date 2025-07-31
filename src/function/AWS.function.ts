@@ -50,7 +50,7 @@ const createUserAWSInstance = (userId: string, accessKeyId: string, secretAccess
                 secretAccessKey: secretAccessKey,
                 region: region
             });
-        }   
+        }
     };
     
     userAWSInstances.set(userId, awsInstance);
@@ -126,7 +126,7 @@ export const loadCredentials = (userId: string, password: string) => {
 };
 
 // 저장된 자격 증명 정보 확인 (사용자별)
-export const getSavedCredentials = (userId: string) => {
+export const getSavedCredentials = (userId: string, password: string) => {
     try {
         const filePath = getUserCredentialsFile(userId);
         
@@ -137,9 +137,12 @@ export const getSavedCredentials = (userId: string) => {
         const data = fs.readFileSync(filePath, 'utf8');
         const credentials = JSON.parse(data);
         
+        const decryptedData = decryptCredentials(credentials.encryptedData, password);
+        const decryptedCredentials = JSON.parse(decryptedData);
+
         return {
-            accessKeyId: '***', // 암호화되어 있어서 마스킹
-            secretAccessKey: '***', // 암호화되어 있어서 마스킹
+            accessKeyId: decryptedCredentials.accessKeyId,
+            secretAccessKey: decryptedCredentials.secretAccessKey,
             savedAt: credentials.savedAt,
             isEncrypted: true
         };
@@ -241,11 +244,11 @@ export const getIAMUserInfo = async (userId: string, username: string) => {
             UserName: username
         };
         
-        // 타임아웃 설정 (1초)
+        // 타임아웃 설정 (5초로 증가)
         const response = await Promise.race([
             iam.getUser(params).promise(),
             new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('IAM API 호출 시간 초과')), 1000)
+                setTimeout(() => reject(new Error('IAM API 호출 시간 초과 (5초)')), 5000)
             )
         ]);
         
@@ -269,18 +272,32 @@ export const getIAMList = async (userId: string) => {
             MaxItems: 50 // 더 적은 수로 제한
         };
         
-        // 타임아웃 설정 (1초)
-        const response = await Promise.race([
-            iam.listUsers(params).promise(),
-            new Promise((_, reject) => 
-                setTimeout(() => reject(new Error('IAM API 호출 시간 초과')), 1000)
-            )
-        ]);
+        // 재시도 로직 추가 (최대 3회)
+        let lastError: any;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                // 타임아웃 설정 (5초로 증가)
+                const response = await Promise.race([
+                    iam.listUsers(params).promise(),
+                    new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('IAM API 호출 시간 초과 (5초)')), 5000)
+                    )
+                ]);
+                
+                const userResponse = response as any;
+                return userResponse.Users?.map((user: any) => user.UserName).join('\n') || 'IAM 사용자가 없습니다.';
+            } catch (error) {
+                lastError = error;
+                if (attempt < 3) {
+                    // 재시도 전 잠시 대기
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+            }
+        }
         
-        const userResponse = response as any;
-        return userResponse.Users?.map((user: any) => user.UserName).join('\n') || 'IAM 사용자가 없습니다.';
+        throw lastError;
     } catch (error) {
-        return `IAM 사용자 목록 조회 실패: ${error instanceof Error ? error.message : String(error)}\n\n**해결 방법:**\n1. 자격 증명이 올바른지 확인하세요\n2. IAM 권한이 있는지 확인하세요`;
+        return `IAM 사용자 목록 조회 실패: ${error instanceof Error ? error.message : String(error)}\n\n**해결 방법:**\n1. 자격 증명이 올바른지 확인하세요\n2. IAM 권한이 있는지 확인하세요\n3. 네트워크 연결을 확인하세요`;
     }
 };
 
