@@ -50,7 +50,7 @@ const createUserAWSInstance = (userId: string, accessKeyId: string, secretAccess
                 secretAccessKey: secretAccessKey,
                 region: region
             });
-        }   
+        }
     };
     
     userAWSInstances.set(userId, awsInstance);
