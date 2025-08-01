@@ -21,14 +21,25 @@ const startDiscordBot = async () => {
 
     client.on('ready', async () => {
         if(client.application) {
+            console.log('등록할 명령어 목록:');
+            commandRouter.forEach(cmd => {
+                console.log(`- ${cmd.name}: ${cmd.description}`);
+                if (cmd.options) {
+                    cmd.options.forEach(option => {
+                        console.log(`  └─ ${option.name}: ${option.description}`);
+                    });
+                }
+            });
+            
             await client.application.commands.set(commandRouter);
-            console.log('Slash commands registered');
+            console.log('Slash commands registered successfully');
         }
     });
 };
 
 client.on('interactionCreate', async(interaction: Interaction) => {
     if(interaction.isCommand()) {
+        console.log(`명령어 실행: ${interaction.commandName}`);
         const currentCommand = commandRouter.find(command => command.name === interaction.commandName);
         if(currentCommand) {
             currentCommand.execute(client, interaction as ChatInputCommandInteraction);

@@ -50,6 +50,13 @@ const createUserAWSInstance = (userId: string, accessKeyId: string, secretAccess
                 secretAccessKey: secretAccessKey,
                 region: region
             });
+        },
+        CloudWatch: function(region: string) { // CloudWatch 권한 추가
+            return new AWS.CloudWatch({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
         }
     };
     
