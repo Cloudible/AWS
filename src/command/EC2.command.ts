@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType } from "discord.js";
+import { ApplicationCommand, ApplicationCommandOptionType } from "discord.js";
 import { SlashCommand } from "../DTO/slashCommand.DTO";
 import { getEC2Info, getEC2List, letEC2Reboot, letEC2Start, letEC2Stop } from "../function/EC2.function";
 import { error } from "console";
@@ -312,6 +312,200 @@ export const ec2Command : SlashCommand = {
                     description : "중지 시 절전 모드 사용 여부",
                     type : ApplicationCommandOptionType.Boolean,
                     required : false
+                }
+            ]
+        },
+        {
+            name : "mornitoring Instance",
+            description : "인스턴를 모니터링을 켜고 끕니다.",
+            type : ApplicationCommandOptionType.Subcommand,
+            options : [
+                {
+                    name : "region",
+                    description : "리전 선택",
+                    type : ApplicationCommandOptionType.String,
+                    required : true,
+                    choices : [
+                        // 미국 리전
+                        {
+                            name : "🇺🇸 미국 - 버지니아 북부",
+                            value : "us-east-1"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 오하이오",
+                            value : "us-east-2"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 캘리포니아",
+                            value : "us-west-1"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 오레곤",
+                            value : "us-west-2"
+                        },
+                        // 아시아 태평양 리전
+                        {
+                            name : "🇮🇳 아시아 - 뭄바이",
+                            value : "ap-south-1"
+                        },
+                        {
+                            name : "🇯🇵 아시아 - 도쿄",
+                            value : "ap-northeast-1"
+                        },
+                        {
+                            name : "🇰🇷 아시아 - 서울",
+                            value : "ap-northeast-2"
+                        },
+                        {
+                            name : "🇯🇵 아시아 - 오사카",
+                            value : "ap-northeast-3"
+                        },
+                        {
+                            name : "🇸🇬 아시아 - 싱가포르",
+                            value : "ap-southeast-1"
+                        },
+                        {
+                            name : "🇦🇺 아시아 - 시드니",
+                            value : "ap-southeast-2"
+                        },
+                        // 캐나다 리전
+                        {
+                            name : "🇨🇦 캐나다 - 중부",
+                            value : "ca-central-1"
+                        },
+                        // 유럽 리전
+                        {
+                            name : "🇩🇪 유럽 - 프랑크푸르트",
+                            value : "eu-central-1"
+                        },
+                        {
+                            name : "🇮🇪 유럽 - 아일랜드",
+                            value : "eu-west-1"
+                        },
+                        {
+                            name : "🇬🇧 유럽 - 런던",
+                            value : "eu-west-2"
+                        },
+                        {
+                            name : "🇫🇷 유럽 - 파리",
+                            value : "eu-west-3"
+                        },
+                        {
+                            name : "🇸🇪 유럽 - 스톡홀름",
+                            value : "eu-north-1"
+                        },
+                        // 남아메리카 리전
+                        {
+                            name : "🇧🇷 남아메리카 - 상파울루",
+                            value : "sa-east-1"
+                        }
+                    ]
+                },
+                {
+                    name : "instance-name",
+                    description : "인스턴스 이름",
+                    type : ApplicationCommandOptionType.String,
+                    required : true
+                }
+            ]
+        },
+        {
+            name : "state-change",
+            description : "Instance 상태 수정 (실행/중지/재부팅)",
+            type : ApplicationCommandOptionType.Subcommand,
+            options : [
+                {
+                    name : "region",
+                    description : "리전 선택",
+                    type : ApplicationCommandOptionType.String,
+                    required : true,
+                    choices : [
+                        // 미국 리전
+                        {
+                            name : "🇺🇸 미국 - 버지니아 북부",
+                            value : "us-east-1"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 오하이오",
+                            value : "us-east-2"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 캘리포니아",
+                            value : "us-west-1"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 오레곤",
+                            value : "us-west-2"
+                        },
+                        // 아시아 태평양 리전
+                        {
+                            name : "🇮🇳 아시아 - 뭄바이",
+                            value : "ap-south-1"
+                        },
+                        {
+                            name : "🇯🇵 아시아 - 도쿄",
+                            value : "ap-northeast-1"
+                        },
+                        {
+                            name : "🇰🇷 아시아 - 서울",
+                            value : "ap-northeast-2"
+                        },
+                        {
+                            name : "🇯🇵 아시아 - 오사카",
+                            value : "ap-northeast-3"
+                        },
+                        {
+                            name : "🇸🇬 아시아 - 싱가포르",
+                            value : "ap-southeast-1"
+                        },
+                        {
+                            name : "🇦🇺 아시아 - 시드니",
+                            value : "ap-southeast-2"
+                        },
+                        // 캐나다 리전
+                        {
+                            name : "🇨🇦 캐나다 - 중부",
+                            value : "ca-central-1"
+                        },
+                        // 유럽 리전
+                        {
+                            name : "🇩🇪 유럽 - 프랑크푸르트",
+                            value : "eu-central-1"
+                        },
+                        {
+                            name : "🇮🇪 유럽 - 아일랜드",
+                            value : "eu-west-1"
+                        },
+                        {
+                            name : "🇬🇧 유럽 - 런던",
+                            value : "eu-west-2"
+                        },
+                        {
+                            name : "🇫🇷 유럽 - 파리",
+                            value : "eu-west-3"
+                        },
+                        {
+                            name : "🇸🇪 유럽 - 스톡홀름",
+                            value : "eu-north-1"
+                        },
+                        // 남아메리카 리전
+                        {
+                            name : "🇧🇷 남아메리카 - 상파울루",
+                            value : "sa-east-1"
+                        }
+                    ]
+                },
+                {
+                    name : "instance-id",
+                    description : "인스턴스 Id",
+                    type : ApplicationCommandOptionType.String,
+                    required : true
+                },
+                {
+                    name : "dry-run",
+                    description : "DryRun 옵션 사용 여부",
+                    type : ApplicationCommandOptionType.Boolean,
+                    required : true
                 }
             ]
         }

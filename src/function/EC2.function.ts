@@ -126,7 +126,6 @@ export const getEC2State = async (
     return instanceState.Name;
 };
 
-
 export const letEC2Start = async (
     userId : string,
     region : string,
@@ -148,8 +147,10 @@ export const letEC2Start = async (
         }
 
         const checkFirst = await getEC2State(userId, region, InstanceId);
-        if(checkFirst === 'running' || checkFirst === 'pending') {
+        if(checkFirst === 'running') {
             throw new Error(`${InstanceId} 인스턴스는 이미 실행 중입니다.`);
+        } else if(checkFirst === 'pending') {
+            throw new Error(`${InstanceId} 인스턴스는 이미 실행 준비 중입니다. "Pending"`);
         }
 
         await ec2.startInstances(params).promise();
@@ -184,8 +185,10 @@ export const letEC2Stop = async (
         }
 
         const checkFirst = await getEC2State(userId, region, InstanceId);
-        if(checkFirst === 'stopped' || checkFirst === 'stopping') {
+        if(checkFirst === 'stopped') {
             throw new Error(`${InstanceId} 인스턴스는 이미 중지 되었습니다.`);
+        } else if(checkFirst === 'stopping') {
+            throw new Error(`${InstanceId} 인스턴스는 이미 중지 중입니다.`);
         }
 
         await ec2.stopInstances(params).promise();
