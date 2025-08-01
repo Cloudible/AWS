@@ -147,6 +147,11 @@ export const letEC2Start = async (
             DryRun: dryRun
         }
 
+        const checkFirst = await getEC2State(userId, region, InstanceId);
+        if(checkFirst === 'running' || checkFirst === 'pending') {
+            throw new Error(`${InstanceId} 인스턴스는 이미 실행 중입니다.`);
+        }
+
         await ec2.startInstances(params).promise();
         return `**EC2 인스턴스 실행**\n\n**리전:** (${region})\n**인스턴스 Id:** ${InstanceId}\n**DryRun:** ${dryRun}`;
 
@@ -176,6 +181,11 @@ export const letEC2Stop = async (
             InstanceIds: [InstanceId],
             DryRun: dryRun,
             Hibernate: hibernation
+        }
+
+        const checkFirst = await getEC2State(userId, region, InstanceId);
+        if(checkFirst === 'stopped' || checkFirst === 'stopping') {
+            throw new Error(`${InstanceId} 인스턴스는 이미 중지 되었습니다.`);
         }
 
         await ec2.stopInstances(params).promise();
