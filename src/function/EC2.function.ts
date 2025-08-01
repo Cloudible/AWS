@@ -95,6 +95,38 @@ export const getEC2Info = async (
     }
 };
 
+
+export const getEC2State = async (
+    userId : string,
+    region : string,
+    InstanceId : string
+):Promise<string> => {
+    const awsInstance = getUserAWSInstance(userId);
+
+    if(!awsInstance) {
+        throw new Error('AWS 인스턴스가 설정되지 않았습니다. /aws configure 명령어로 자격 증명을 설정하세요.');
+    }
+
+    const ec2 = awsInstance.EC2(region);
+
+    const params = {
+        InstanceIds : [InstanceId]
+    }
+
+    const result = await ec2.describeInstances(params).promise();
+
+    const instanceName = result.Reservations[0].Instances[0].Tags.find((tag: any) => tag.Key === 'Name')?.Value || 'N/A';
+
+    if(!result.Reservations || result.Reservations.length === 0) {
+        return `${region} 리전에 ${instanceName}가 존재하지 않습니다.`
+    }
+
+    const instanceState = result.Reservations[0].Instances[0].State;
+
+    return instanceState.Name;
+};
+
+
 export const letEC2Start = async (
     userId : string,
     region : string,
