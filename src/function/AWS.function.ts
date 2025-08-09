@@ -57,6 +57,13 @@ const createUserAWSInstance = (userId: string, accessKeyId: string, secretAccess
                 secretAccessKey: secretAccessKey,
                 region: region
             });
+        },
+        VPC: function(region: string) {
+            return new AWS.EC2({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
         }
     };
     
