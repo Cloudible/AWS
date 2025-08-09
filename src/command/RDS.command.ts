@@ -256,117 +256,62 @@ export const rdsCommand: SlashCommand = {
         },
         {
           name: "instance-class",
-          description:
-            "인스턴스 클래스 (범용 - 엔진 호환성 고려)",
+          description: "인스턴스 클래스 (전체 엔진 호환)",
           type: ApplicationCommandOptionType.String,
           required: false,
           choices: [
             // 🔹 Intel 4세대 Xeon (db.m7i) - 모든 엔진 호환
             {
-              name: "db.m7i.large (8GB RAM) [전체 엔진 호환]",
+              name: "db.m7i.large (8GB RAM)",
               value: "db.m7i.large",
             },
             {
-              name: "db.m7i.xlarge (16GB RAM) [전체 엔진 호환]",
+              name: "db.m7i.xlarge (16GB RAM)",
               value: "db.m7i.xlarge",
             },
             {
-              name: "db.m7i.2xlarge (32GB RAM) [전체 엔진 호환]",
+              name: "db.m7i.2xlarge (32GB RAM)",
               value: "db.m7i.2xlarge",
             },
             {
-              name: "db.m7i.4xlarge (64GB RAM) [전체 엔진 호환]",
+              name: "db.m7i.4xlarge (64GB RAM)",
               value: "db.m7i.4xlarge",
             },
 
             // 🔹 Intel 3세대 Xeon (db.m6i) - 모든 엔진 호환
             {
-              name: "db.m6i.large (8GB RAM) [전체 엔진 호환]",
+              name: "db.m6i.large (8GB RAM)",
               value: "db.m6i.large",
             },
             {
-              name: "db.m6i.xlarge (16GB RAM) [전체 엔진 호환]",
+              name: "db.m6i.xlarge (16GB RAM)",
               value: "db.m6i.xlarge",
             },
             {
-              name: "db.m6i.2xlarge (32GB RAM) [전체 엔진 호환]",
+              name: "db.m6i.2xlarge (32GB RAM)",
               value: "db.m6i.2xlarge",
             },
             {
-              name: "db.m6i.4xlarge (64GB RAM) [전체 엔진 호환]",
+              name: "db.m6i.4xlarge (64GB RAM)",
               value: "db.m6i.4xlarge",
             },
 
             // 🔹 Intel Platinum (db.m5) - 모든 엔진 호환
             {
-              name: "db.m5.large (8GB RAM) [전체 엔진 호환]",
+              name: "db.m5.large (8GB RAM)",
               value: "db.m5.large",
             },
             {
-              name: "db.m5.xlarge (16GB RAM) [전체 엔진 호환]",
+              name: "db.m5.xlarge (16GB RAM)",
               value: "db.m5.xlarge",
             },
             {
-              name: "db.m5.2xlarge (32GB RAM) [전체 엔진 호환]",
+              name: "db.m5.2xlarge (32GB RAM)",
               value: "db.m5.2xlarge",
             },
             {
-              name: "db.m5.4xlarge (64GB RAM) [전체 엔진 호환]",
+              name: "db.m5.4xlarge (64GB RAM)",
               value: "db.m5.4xlarge",
-            },
-
-            // 🔹 최신 Graviton4 프로세서 (db.m8g) - SQL Server 제외
-            {
-              name: "db.m8g.large (8GB RAM) [SQL Server 제외]",
-              value: "db.m8g.large",
-            },
-            {
-              name: "db.m8g.xlarge (16GB RAM) [SQL Server 제외]",
-              value: "db.m8g.xlarge",
-            },
-            {
-              name: "db.m8g.2xlarge (32GB RAM) [SQL Server 제외]",
-              value: "db.m8g.2xlarge",
-            },
-            {
-              name: "db.m8g.4xlarge (64GB RAM) [SQL Server 제외]",
-              value: "db.m8g.4xlarge",
-            },
-
-            // 🔹 Graviton3 프로세서 (db.m7g) - SQL Server 제외
-            {
-              name: "db.m7g.large (8GB RAM) [SQL Server 제외]",
-              value: "db.m7g.large",
-            },
-            {
-              name: "db.m7g.xlarge (16GB RAM) [SQL Server 제외]",
-              value: "db.m7g.xlarge",
-            },
-            {
-              name: "db.m7g.2xlarge (32GB RAM) [SQL Server 제외]",
-              value: "db.m7g.2xlarge",
-            },
-            {
-              name: "db.m7g.4xlarge (64GB RAM) [SQL Server 제외]",
-              value: "db.m7g.4xlarge",
-            },
-
-            // 🔹 Graviton2 프로세서 (db.m6g) - SQL Server 제외
-            {
-              name: "db.m6g.large (8GB RAM) [SQL Server 제외]",
-              value: "db.m6g.large",
-            },
-            {
-              name: "db.m6g.xlarge (16GB RAM) [SQL Server 제외]",
-              value: "db.m6g.xlarge",
-            },
-            {
-              name: "db.m6g.2xlarge (32GB RAM) [SQL Server 제외]",
-              value: "db.m6g.2xlarge",
-            },
-            {
-              name: "db.m6g.4xlarge (64GB RAM) [SQL Server 제외]",
-              value: "db.m6g.4xlarge",
             },
           ],
         },
