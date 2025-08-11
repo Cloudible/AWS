@@ -1,23 +1,29 @@
-import { ChatInputCommandInteraction, Client, Interaction, GatewayIntentBits } from 'discord.js';
-import dotenv from 'dotenv';
-import commandRouter from '../router.Command/router';
+import {
+  ChatInputCommandInteraction,
+  Client,
+  Interaction,
+  GatewayIntentBits,
+} from "discord.js";
+import dotenv from "dotenv";
+import commandRouter from "../router.Command/router";
 
 dotenv.config();
 
 const Token = process.env.DISCORD_TOKEN;
 
 const client = new Client({
-    // 봇 권한 설정
-    intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
-    ]
+  // 봇 권한 설정
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
 const startDiscordBot = async () => {
-    await client.login(Token);
-    console.log('Discord bot is running');
+  await client.login(Token);
+  console.log("Discord bot is running");
+
 
     client.on('ready', async () => {
         if(client.application) {
@@ -34,8 +40,14 @@ const startDiscordBot = async () => {
             await client.application.commands.set(commandRouter);
             console.log('Slash commands registered successfully');
         }
-    });
+      });
+
+      await client.application.commands.set(commandRouter);
+      console.log("Slash commands registered successfully");
+    }
+  });
 };
+
 
 client.on('interactionCreate', async(interaction: Interaction) => {
     if(interaction.isCommand()) {
@@ -44,7 +56,9 @@ client.on('interactionCreate', async(interaction: Interaction) => {
         if(currentCommand) {
             currentCommand.execute(client, interaction as ChatInputCommandInteraction);
         }
+
     }
-});
+  }
+);
 
 export default startDiscordBot;
