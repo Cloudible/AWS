@@ -24,17 +24,21 @@ const startDiscordBot = async () => {
   await client.login(Token);
   console.log("Discord bot is running");
 
-  client.on("ready", async () => {
-    if (client.application) {
-      console.log("등록할 명령어 목록:");
-      commandRouter.forEach((cmd) => {
-        console.log(`- ${cmd.name}: ${cmd.description}`);
-        if (cmd.options) {
-          cmd.options.forEach((option: any) => {
-            console.log(
-              `  └─ ${option.name}: ${option.description}`
-            );
-          });
+
+    client.on('ready', async () => {
+        if(client.application) {
+            console.log('등록할 명령어 목록:');
+            commandRouter.forEach(cmd => {
+                console.log(`- ${cmd.name}: ${cmd.description}`);
+                if (cmd.options) {
+                    cmd.options.forEach(option => {
+                        console.log(`  └─ ${option.name}: ${option.description}`);
+                    });
+                }
+            });
+            
+            await client.application.commands.set(commandRouter);
+            console.log('Slash commands registered successfully');
         }
       });
 
@@ -44,20 +48,15 @@ const startDiscordBot = async () => {
   });
 };
 
-client.on(
-  "interactionCreate",
-  async (interaction: Interaction) => {
-    if (interaction.isCommand()) {
-      console.log(`명령어 실행: ${interaction.commandName}`);
-      const currentCommand = commandRouter.find(
-        (command) => command.name === interaction.commandName
-      );
-      if (currentCommand) {
-        currentCommand.execute(
-          client,
-          interaction as ChatInputCommandInteraction
-        );
-      }
+
+client.on('interactionCreate', async(interaction: Interaction) => {
+    if(interaction.isCommand()) {
+        console.log(`명령어 실행: ${interaction.commandName}`);
+        const currentCommand = commandRouter.find(command => command.name === interaction.commandName);
+        if(currentCommand) {
+            currentCommand.execute(client, interaction as ChatInputCommandInteraction);
+        }
+
     }
   }
 );

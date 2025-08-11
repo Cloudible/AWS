@@ -26,52 +26,52 @@ const getUserCredentialsFile = (userId: string) => {
 const userAWSInstances = new Map<string, any>(); // userId와 인스턴스 값을 mapping
 
 // 사용자별 AWS 인스턴스 생성
-const createUserAWSInstance = (
-  userId: string,
-  accessKeyId: string,
-  secretAccessKey: string,
-  region: string = "us-east-1"
-) => {
-  // 완전히 새로운 AWS 인스턴스 생성
-  const awsInstance = {
-    config: {
-      credentials: {
-        accessKeyId: accessKeyId,
-        secretAccessKey: secretAccessKey,
-      },
-      region: region,
-    },
-    STS: function () {
-      return new AWS.STS({
-        accessKeyId: accessKeyId,
-        secretAccessKey: secretAccessKey,
-        region: region,
-      });
-    },
-    IAM: function () {
-      return new AWS.IAM({
-        accessKeyId: accessKeyId,
-        secretAccessKey: secretAccessKey,
-        region: region,
-      });
-    },
-    EC2: function (region: string) {
-      // EC2 권한 추가
-      return new AWS.EC2({
-        accessKeyId: accessKeyId,
-        secretAccessKey: secretAccessKey,
-        region: region,
-      });
-    },
-    CloudWatch: function (region: string) {
-      // CloudWatch 권한 추가
-      return new AWS.CloudWatch({
-        accessKeyId: accessKeyId,
-        secretAccessKey: secretAccessKey,
-        region: region,
-      });
-    },
-    RDS: function (region: string = "ap-northeast-2") {
+const createUserAWSInstance = (userId: string, accessKeyId: string, secretAccessKey: string, region: string = 'us-east-1') => {
+    // 완전히 새로운 AWS 인스턴스 생성
+    const awsInstance = {
+        config: {
+            credentials: {
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey
+            },
+            region: region
+        },
+        STS: function() {
+            return new AWS.STS({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        },
+        IAM: function() {
+            return new AWS.IAM({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        },
+        EC2: function(region: string) { // EC2 권한 추가
+            return new AWS.EC2({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        },
+        CloudWatch: function(region: string) { // CloudWatch 권한 추가
+            return new AWS.CloudWatch({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        },
+        VPC: function(region: string) {
+            return new AWS.EC2({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        },
+          RDS: function (region: string = "ap-northeast-2") {
       // RDS 권한 추가
       return new AWS.RDS({
         accessKeyId: accessKeyId,
@@ -79,10 +79,11 @@ const createUserAWSInstance = (
         region: region,
       });
     },
-  };
+    };
+    
+    userAWSInstances.set(userId, awsInstance);
+    return awsInstance;
 
-  userAWSInstances.set(userId, awsInstance);
-  return awsInstance;
 };
 
 // 사용자별 AWS 인스턴스 가져오기
