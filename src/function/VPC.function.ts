@@ -129,3 +129,36 @@ export const addSubnet = async (
         throw new Error(`서브넷 추가 실패: ${error instanceof Error ? error.message : String(error)}`);
     }
 };
+
+export const deleteSubnet = async (
+    userId : string,
+    region : string,
+    subnetId : string
+) => {
+    try {
+        const awsInstance = getUserAWSInstance(userId);
+    
+        if(!awsInstance) {
+            throw new Error('AWS 인스턴스가 설정되지 않았습니다. /aws configure 명령어로 자격 증명을 설정하세요.');
+        }
+    
+        const vpc = awsInstance.VPC(region);
+    
+        const params = {
+            SubnetIds : [subnetId]
+        };
+    
+        await vpc.deleteSubnet(params).promise();
+
+        return {
+            success : true,
+            subnetId : subnetId
+        }
+
+    } catch (error) {
+        throw new Error(`서브넷 삭제 실패: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+
+
+};

@@ -1,6 +1,6 @@
 import { SlashCommand } from "../DTO/slashCommand.DTO";
 import { ApplicationCommandOptionType, Client, ChatInputCommandInteraction } from "discord.js";
-import { addSubnet, createVPC, listUpVPC } from "../function/VPC.function";
+import { addSubnet, createVPC, deleteSubnet, listUpVPC } from "../function/VPC.function";
 
 export const vpcCommand : SlashCommand ={
     name : "vpc",
@@ -458,6 +458,25 @@ export const vpcCommand : SlashCommand ={
                     const errorMessage = error instanceof Error ? error.message : String(error);
                     await interaction.reply({
                         content : `서브넷 추가에 실패했습니다. : ${errorMessage}`,
+                        flags : 64
+                    });
+                }
+            } else if(subcommand === "subnet-delete") {
+                try {
+                    const region = interaction.options.getString("region");
+                    const subnetId = interaction.options.getString("subnetId");
+
+                    await deleteSubnet(userId!, region!, subnetId!);
+
+                    await interaction.reply({
+                        content : `**서브넷 삭제**\n\n**리전:** (${region})\n**서브넷 아이디:** ${subnetId}`,
+                        flags : 64
+                    });
+
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    await interaction.reply({
+                        content : `서브넷 삭제에 실패했습니다. : ${errorMessage}`,
                         flags : 64
                     });
                 }
