@@ -69,10 +69,10 @@ export const listUpVPC = async (
         response.Vpcs.forEach((vpc: any, index: number) => {
             const vpcName = vpc.Tags?.find((tag: any) => tag.Key === 'Name')?.Value || '이름 없음';
             vpcList += `**${index + 1}. ${vpcName}**\n`;
-            vpcList += `   - VPC ID: ${vpc.VpcId}\n`;
-            vpcList += `   - CIDR Block: ${vpc.CidrBlock}\n`;
-            vpcList += `   - State: ${vpc.State}\n`;
-            vpcList += `   - Default: ${vpc.IsDefault ? 'Yes' : 'No'}\n\n`;
+            vpcList += `   **VPC ID:** ${vpc.VpcId}\n`;
+            vpcList += `   **CIDR Block:** ${vpc.CidrBlock}\n`;
+            vpcList += `   **State:** ${vpc.State}\n`;
+            vpcList += `   **Default:** ${vpc.IsDefault ? 'Yes' : 'No'}\n\n`;
         });
 
         return vpcList;
@@ -145,7 +145,7 @@ export const deleteSubnet = async (
         const vpc = awsInstance.VPC(region);
     
         const params = {
-            SubnetIds : [subnetId]
+            SubnetId : subnetId
         };
     
         await vpc.deleteSubnet(params).promise();

@@ -307,7 +307,6 @@ export const vpcCommand : SlashCommand ={
             type : ApplicationCommandOptionType.Subcommand,
             options : [
                 {
-                    {
                     name : "region",
                     description : "리전 선택",
                     type : ApplicationCommandOptionType.String,
@@ -389,7 +388,7 @@ export const vpcCommand : SlashCommand ={
                     ]
                 },
                 {
-                    name : "subnetId",
+                    name : "subnet-id",
                     description : "Subnet 아이디",
                     type : ApplicationCommandOptionType.String,
                     required : true
@@ -447,10 +446,10 @@ export const vpcCommand : SlashCommand ={
                     const cidr = interaction.options.getString("cidr");
                     
                     // function call
-                    await addSubnet(userId!, region!, vpcId!, subnetName!, cidr!);
+                    const response = await addSubnet(userId!, region!, vpcId!, subnetName!, cidr!);
 
                     await interaction.reply({
-                        content : `**서브넷 추가**\n\n**리전:** (${region})\n**VPC ID:** ${vpcId}\n**서브넷 이름:** ${subnetName}\n**CIDR:** ${cidr}`,
+                        content : `**서브넷 추가**\n\n**리전:** (${region})\n**Subnet ID:** ${response.subnetId}\n**서브넷 이름:** ${response.subnetName}\n**CIDR:** ${response.cidrBlock}\n**state:** ${response.state}`,
                         flags : 64
                     });
 
@@ -461,10 +460,10 @@ export const vpcCommand : SlashCommand ={
                         flags : 64
                     });
                 }
-            } else if(subcommand === "subnet-delete") {
+            } else if(subcommand === "delete-subnet") {
                 try {
                     const region = interaction.options.getString("region");
-                    const subnetId = interaction.options.getString("subnetId");
+                    const subnetId = interaction.options.getString("subnet-id");
 
                     await deleteSubnet(userId!, region!, subnetId!);
 
