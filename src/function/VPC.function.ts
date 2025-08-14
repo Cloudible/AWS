@@ -82,3 +82,50 @@ export const listUpVPC = async (
     }
 
 };
+
+export const addSubnet = async (
+    userId : string,
+    region : string,
+    vpcId : string,
+    subnetName : string,
+    cidr : string
+) => {
+    try {
+        const awsInstance = getUserAWSInstance(userId);
+
+        if(!awsInstance) {
+            throw new Error('AWS 인스턴스가 설정되지 않았습니다. /aws configure 명령어로 자격 증명을 설정하세요.');
+        }
+
+        const vpc = awsInstance.VPC(region);
+
+        const params = {
+            CidrBlock : cidr,
+            VpcId : vpcId,
+            TagSpecifications : [
+                {
+                    ResourceType : "subnet",
+                    Tags : [
+                        {
+                            Key : "Name",
+                            Value : subnetName
+                        }
+                    ]
+                }
+            ]
+        }
+
+        const response = await vpc.createSubnet(params).promise();
+
+        return {
+            success : true,
+            subnetId : response.Subnet?.SubnetId,
+            cidrBlock : response.Subnet?.CidrBlock,
+            state : response.Subnet?.State,
+            subnetName : subnetName
+        }
+
+    } catch (error) {
+        throw new Error(`서브넷 추가 실패: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
