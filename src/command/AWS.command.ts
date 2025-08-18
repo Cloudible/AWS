@@ -191,12 +191,10 @@ export const awsCommand : SlashCommand = {
                 if(credentials) {
                     await interaction.reply({
                         content: `✅ 자격 증명 불러오기 완료 (사용자: <@${userId}>)`,
-                        flags: 64
                     });
                 } else {
                     await interaction.reply({
                         content: `❌ 저장된 자격 증명이 없습니다`,
-                        flags: 64
                     });
                 }
                 
@@ -254,7 +252,10 @@ export const awsCommand : SlashCommand = {
                 
             } else if(subcommand === "account-info") {
                 const accountInfo = await getAccountInfo(userId);
-                await interaction.reply(`AWS 계정 정보:\n\n**사용자:** <@${userId}>\n**계정 ID:** ${accountInfo.Account}\n**사용자 ID:** ${accountInfo.UserId}\n**ARN:** ${accountInfo.Arn}`);
+                await interaction.reply({
+                    content : `AWS 계정 정보:\n\n**사용자:** <@${userId}>\n**계정 ID:** ${accountInfo.Account}\n**사용자 ID:** ${accountInfo.UserId}\n**ARN:** ${accountInfo.Arn}`,
+                    flags : 64
+                });
                 
             } else if(subcommand === "iam-user") {
                 const username = interaction.options.getString("username");
