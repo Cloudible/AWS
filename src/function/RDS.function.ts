@@ -1,6 +1,14 @@
 // src/function/RDS.function.ts
 import AWS from "aws-sdk";
 import { getUserAWSInstance } from "./AWS.function";
+import { 
+    addRDSResource, 
+    removeRDSResource, 
+    getRDSByName, 
+    getRDSById,
+    RDSResource
+} from "../middleWare/resourceManager";
+
 
 // 사용자별 RDS 클라이언트 생성
 const getUserRDSClient = (
@@ -82,6 +90,21 @@ export const createRDSInstance = async (
   try {
     const result = await rds.createDBInstance(params).promise();
     console.log("RDS 인스턴스 생성 성공:", dbInstanceIdentifier);
+    
+    // 통합 데이터에 RDS 리소스 추가
+    const rdsResource: RDSResource = {
+      name: dbInstanceIdentifier,
+      region,
+      dbInstanceIdentifier,
+      engine,
+      status: 'creating',
+      instanceClass: dbInstanceClass,
+      availabilityZone: 'pending',
+      vpcId: undefined,
+      subnetGroupName
+    };
+    addRDSResource(userId, rdsResource);
+    
     return result;
   } catch (error) {
     console.error("RDS 인스턴스 생성 실패:", error);
@@ -127,7 +150,12 @@ export const deleteRDSInstance = async (
     SkipFinalSnapshot: skipFinalSnapshot,
   };
 
-  return rds.deleteDBInstance(params).promise();
+  const result = await rds.deleteDBInstance(params).promise();
+  
+  // 통합 데이터에서 RDS 리소스 제거
+  removeRDSResource(userId, dbInstanceIdentifier);
+  
+  return result;
 };
 
 // RDS 인스턴스 상태 확인

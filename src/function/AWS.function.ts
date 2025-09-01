@@ -5,6 +5,7 @@ import {
   encryptCredentials,
   decryptCredentials,
 } from "../middleWare/encryption";
+import { syncAWSData } from "../middleWare/resourceManager";
 
 // 사용자별 자격 증명 저장 디렉토리
 const CREDENTIALS_DIR = path.join(
@@ -16,6 +17,7 @@ const CREDENTIALS_DIR = path.join(
 if (!fs.existsSync(CREDENTIALS_DIR)) {
   fs.mkdirSync(CREDENTIALS_DIR, { recursive: true });
 }
+
 
 // 사용자별 자격 증명 파일 경로 생성
 const getUserCredentialsFile = (userId: string) => {
@@ -125,7 +127,7 @@ export const saveCredentials = (
 
     // 파일 권한 설정 (600: 소유자만 읽기/쓰기)
     fs.chmodSync(filePath, 0o600);
-
+    
     // 사용자별 AWS 인스턴스 생성 (원본 자격 증명 사용)
     createUserAWSInstance(userId, accessKeyId, secretAccessKey);
 
@@ -449,4 +451,21 @@ export const configureAWSCredentials = (
     secretAccessKey,
     sessionToken,
   };
+};
+
+export const syncAwsAccount = async (
+  userId : string,
+  region : string
+) => {
+  const awsInstance = await getUserAWSInstance(userId);
+
+  if(!awsInstance) {
+    throw new Error('AWS 인스턴스가 설정되지 않았습니다. /aws configure 명령어로 자격 증명을 설정하세요.');
+  }
+
+  const acceptFile = getUserCredentialsFile(userId);
+
+  fs.chmodSync(acceptFile, 600);
+
+  await syncAWSData(userId, region);
 };

@@ -3,3 +3,4 @@
 /dist
 /aws-credentials
 /aws-credentials/*
+/aws-integrated-data

@@ -1,5 +1,15 @@
 import { getUserAWSInstance } from "./AWS.function";
-
+import { 
+    addVPCResource, 
+    removeVPCResource, 
+    getVPCByName, 
+    getVPCById,
+    getSubnetByName,
+    getSubnetById,
+    loadUserData,
+    VPCResource,
+    SubnetResource
+} from "../middleWare/resourceManager";
 
 export const createVPC = async (
     userId : string,
@@ -59,6 +69,17 @@ export const createVPC = async (
 
             await vpc.attachInternetGateway(attachParams).promise();
 
+            // 통합 데이터에 VPC 리소스 추가
+            const vpcResource: VPCResource = {
+                name: vpcName,
+                region,
+                vpcId: response.Vpc.VpcId!,
+                vpcName,
+                internetGateway: internetResponse.InternetGateway?.InternetGatewayId,
+                subnets: []
+            };
+            addVPCResource(userId, vpcResource);
+
             return {
                 success : true,
                 vpcId: response.Vpc.VpcId,
@@ -70,6 +91,15 @@ export const createVPC = async (
             }
         }
         
+        // 통합 데이터에 VPC 리소스 추가
+        const vpcResource: VPCResource = {
+            name: vpcName,
+            region,
+            vpcId: response.Vpc.VpcId!,
+            vpcName,
+            subnets: []
+        };
+        addVPCResource(userId, vpcResource);
         
         return {
             success: true,
@@ -178,6 +208,26 @@ export const addSubnet = async (
 
         const response = await vpc.createSubnet(params).promise();
 
+        // 서브넷 정보를 VPC 리소스에 추가
+        const subnetResource: SubnetResource = {
+            name: subnetName,
+            region,
+            subnetId: response.Subnet?.SubnetId!,
+            subnetName,
+            cidr,
+            availabilityZone: response.Subnet?.AvailabilityZone!,
+            state: response.Subnet?.State!,
+            vpcId
+        };
+
+        // VPC 리소스 업데이트 (서브넷 추가)
+        const vpcResource = getVPCById(userId, vpcId);
+        if (vpcResource) {
+            if (!vpcResource.subnets) vpcResource.subnets = [];
+            vpcResource.subnets.push(subnetResource);
+            addVPCResource(userId, vpcResource); // 기존 데이터를 덮어씀
+        }
+
         return {
             success : true,
             subnetId : response.Subnet?.SubnetId,
@@ -210,6 +260,17 @@ export const deleteSubnet = async (
         };
     
         await vpc.deleteSubnet(params).promise();
+
+        // 서브넷 정보를 VPC 리소스에서 제거
+        // 서브넷 ID로 VPC를 찾기 위해 모든 VPC를 검색
+        const data = loadUserData(userId);
+        for (const vpc of data.VPC) {
+            if (vpc.subnets && vpc.subnets.some((subnet: SubnetResource) => subnet.subnetId === subnetId)) {
+                vpc.subnets = vpc.subnets.filter((subnet: SubnetResource) => subnet.subnetId !== subnetId);
+                addVPCResource(userId, vpc); // 기존 데이터를 덮어씀
+                break;
+            }
+        }
 
         return {
             success : true,
@@ -291,6 +352,9 @@ export const deleteVPC = async (
 
         // 3. VPC 삭제
         await vpc.deleteVpc({ VpcId: vpcId }).promise();
+
+        // 통합 데이터에서 VPC 리소스 제거
+        removeVPCResource(userId, vpcId);
 
         return {
             success : true,
