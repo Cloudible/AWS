@@ -9,7 +9,7 @@ const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const encryption_1 = require("../middleWare/encryption");
 // 사용자별 자격 증명 저장 디렉토리
-const CREDENTIALS_DIR = path_1.default.join(process.cwd(), 'aws-credentials');
+const CREDENTIALS_DIR = path_1.default.join(process.cwd(), "aws-credentials");
 // 디렉토리가 없으면 생성
 if (!fs_1.default.existsSync(CREDENTIALS_DIR)) {
     fs_1.default.mkdirSync(CREDENTIALS_DIR, { recursive: true });
@@ -51,7 +51,29 @@ const createUserAWSInstance = (userId, accessKeyId, secretAccessKey, region = 'u
                 secretAccessKey: secretAccessKey,
                 region: region
             });
-        }
+        },
+        CloudWatch: function (region) {
+            return new aws_sdk_1.default.CloudWatch({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        },
+        VPC: function (region) {
+            return new aws_sdk_1.default.EC2({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region
+            });
+        },
+        RDS: function (region = "ap-northeast-2") {
+            // RDS 권한 추가
+            return new aws_sdk_1.default.RDS({
+                accessKeyId: accessKeyId,
+                secretAccessKey: secretAccessKey,
+                region: region,
+            });
+        },
     };
     userAWSInstances.set(userId, awsInstance);
     return awsInstance;
@@ -68,13 +90,13 @@ const saveCredentials = (userId, accessKeyId, secretAccessKey, password) => {
         const credentialsData = JSON.stringify({
             accessKeyId,
             secretAccessKey,
-            savedAt: new Date().toISOString()
+            savedAt: new Date().toISOString(),
         });
         // 암호화
         const encryptedCredentials = (0, encryption_1.encryptCredentials)(credentialsData, password);
         const credentials = {
             encryptedData: encryptedCredentials,
-            savedAt: new Date().toISOString()
+            savedAt: new Date().toISOString(),
         };
         const filePath = getUserCredentialsFile(userId);
         fs_1.default.writeFileSync(filePath, JSON.stringify(credentials, null, 2));
@@ -87,7 +109,7 @@ const saveCredentials = (userId, accessKeyId, secretAccessKey, password) => {
         return true;
     }
     catch (error) {
-        console.error('자격 증명 저장 실패:', error);
+        console.error("자격 증명 저장 실패:", error);
         return false;
     }
 };
@@ -99,7 +121,7 @@ const loadCredentials = (userId, password) => {
         if (!fs_1.default.existsSync(filePath)) {
             return null;
         }
-        const data = fs_1.default.readFileSync(filePath, 'utf8');
+        const data = fs_1.default.readFileSync(filePath, "utf8");
         const credentials = JSON.parse(data);
         // 암호화된 데이터 복호화
         const decryptedData = (0, encryption_1.decryptCredentials)(credentials.encryptedData, password);
@@ -110,7 +132,7 @@ const loadCredentials = (userId, password) => {
         return decryptedCredentials;
     }
     catch (error) {
-        console.error('자격 증명 불러오기 실패:', error);
+        console.error("자격 증명 불러오기 실패:", error);
         return null;
     }
 };
@@ -122,7 +144,7 @@ const getSavedCredentials = (userId, password) => {
         if (!fs_1.default.existsSync(filePath)) {
             return null;
         }
-        const data = fs_1.default.readFileSync(filePath, 'utf8');
+        const data = fs_1.default.readFileSync(filePath, "utf8");
         const credentials = JSON.parse(data);
         const decryptedData = (0, encryption_1.decryptCredentials)(credentials.encryptedData, password);
         const decryptedCredentials = JSON.parse(decryptedData);
@@ -130,7 +152,7 @@ const getSavedCredentials = (userId, password) => {
             accessKeyId: decryptedCredentials.accessKeyId,
             secretAccessKey: decryptedCredentials.secretAccessKey,
             savedAt: credentials.savedAt,
-            isEncrypted: true
+            isEncrypted: true,
         };
     }
     catch (error) {
@@ -152,7 +174,7 @@ const deleteCredentials = (userId) => {
         return false;
     }
     catch (error) {
-        console.error('자격 증명 파일 삭제 실패:', error);
+        console.error("자격 증명 파일 삭제 실패:", error);
         return false;
     }
 };
@@ -164,7 +186,9 @@ const checkCredentials = (userId) => {
         return false;
     }
     const credentials = awsInstance.config.credentials;
-    if (!credentials || !credentials.accessKeyId || !credentials.secretAccessKey) {
+    if (!credentials ||
+        !credentials.accessKeyId ||
+        !credentials.secretAccessKey) {
         return false;
     }
     return true;
@@ -177,7 +201,7 @@ const validateCredentials = async (userId) => {
         if (!(0, exports.checkCredentials)(userId)) {
             return {
                 valid: false,
-                error: '자격 증명이 설정되지 않았습니다. /aws configure 또는 /aws load-credentials 명령어로 자격 증명을 설정하세요.'
+                error: "자격 증명이 설정되지 않았습니다. /aws configure 또는 /aws load-credentials 명령어로 자격 증명을 설정하세요.",
             };
         }
         const awsInstance = (0, exports.getUserAWSInstance)(userId);
@@ -187,13 +211,13 @@ const validateCredentials = async (userId) => {
             valid: true,
             accountId: response.Account,
             userId: response.UserId,
-            arn: response.Arn
+            arn: response.Arn,
         };
     }
     catch (error) {
         return {
             valid: false,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
         };
     }
 };
@@ -203,7 +227,7 @@ const getAccountInfo = async (userId) => {
     try {
         // 자격 증명이 설정되어 있는지 확인
         if (!(0, exports.checkCredentials)(userId)) {
-            throw new Error('자격 증명이 설정되지 않았습니다. /aws configure 또는 /aws load-credentials 명령어로 자격 증명을 설정하세요.');
+            throw new Error("자격 증명이 설정되지 않았습니다. /aws configure 또는 /aws load-credentials 명령어로 자격 증명을 설정하세요.");
         }
         const awsInstance = (0, exports.getUserAWSInstance)(userId);
         const sts = awsInstance.STS();
@@ -220,17 +244,17 @@ const getIAMUserInfo = async (userId, username) => {
     try {
         // 자격 증명이 설정되어 있는지 확인
         if (!(0, exports.checkCredentials)(userId)) {
-            throw new Error('자격 증명이 설정되지 않았습니다. /aws configure 또는 /aws load-credentials 명령어로 자격 증명을 설정하세요.');
+            throw new Error("자격 증명이 설정되지 않았습니다. /aws configure 또는 /aws load-credentials 명령어로 자격 증명을 설정하세요.");
         }
         const awsInstance = (0, exports.getUserAWSInstance)(userId);
         const iam = awsInstance.IAM();
         const params = {
-            UserName: username
+            UserName: username,
         };
-        // 타임아웃 설정 (1초)
+        // 타임아웃 설정 (5초로 증가)
         const response = await Promise.race([
             iam.getUser(params).promise(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('IAM API 호출 시간 초과')), 1000))
+            new Promise((_, reject) => setTimeout(() => reject(new Error("IAM API 호출 시간 초과 (5초)")), 5000)),
         ]);
         return response; // 타입 에러 해결을 위해 any 사용
     }
@@ -244,23 +268,37 @@ const getIAMList = async (userId) => {
     try {
         // 자격 증명이 설정되어 있는지 확인
         if (!(0, exports.checkCredentials)(userId)) {
-            return '자격 증명이 설정되지 않았습니다.\n\n**해결 방법:**\n1. /aws configure 명령어로 자격 증명을 설정하세요\n2. 또는 /aws load-credentials 명령어로 저장된 자격 증명을 불러오세요';
+            return "자격 증명이 설정되지 않았습니다.\n\n**해결 방법:**\n1. /aws configure 명령어로 자격 증명을 설정하세요\n2. 또는 /aws load-credentials 명령어로 저장된 자격 증명을 불러오세요";
         }
         const awsInstance = (0, exports.getUserAWSInstance)(userId);
         const iam = awsInstance.IAM();
         const params = {
-            MaxItems: 50 // 더 적은 수로 제한
+            MaxItems: 50, // 더 적은 수로 제한
         };
-        // 타임아웃 설정 (1초)
-        const response = await Promise.race([
-            iam.listUsers(params).promise(),
-            new Promise((_, reject) => setTimeout(() => reject(new Error('IAM API 호출 시간 초과')), 1000))
-        ]);
-        const userResponse = response;
-        return userResponse.Users?.map((user) => user.UserName).join('\n') || 'IAM 사용자가 없습니다.';
+        // 재시도 로직 추가 (최대 3회)
+        let lastError;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+            try {
+                // 타임아웃 설정 (5초로 증가)
+                const response = await Promise.race([
+                    iam.listUsers(params).promise(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("IAM API 호출 시간 초과 (5초)")), 5000)),
+                ]);
+                const userResponse = response;
+                return (userResponse.Users?.map((user) => user.UserName).join("\n") || "IAM 사용자가 없습니다.");
+            }
+            catch (error) {
+                lastError = error;
+                if (attempt < 3) {
+                    // 재시도 전 잠시 대기
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                }
+            }
+        }
+        throw lastError;
     }
     catch (error) {
-        return `IAM 사용자 목록 조회 실패: ${error instanceof Error ? error.message : String(error)}\n\n**해결 방법:**\n1. 자격 증명이 올바른지 확인하세요\n2. IAM 권한이 있는지 확인하세요`;
+        return `IAM 사용자 목록 조회 실패: ${error instanceof Error ? error.message : String(error)}\n\n**해결 방법:**\n1. 자격 증명이 올바른지 확인하세요\n2. IAM 권한이 있는지 확인하세요\n3. 네트워크 연결을 확인하세요`;
     }
 };
 exports.getIAMList = getIAMList;
@@ -276,29 +314,31 @@ const getCurrentCredentials = (userId) => {
     }
     return {
         accessKeyId: credentials.accessKeyId,
-        secretAccessKey: credentials.secretAccessKey ? '***' : undefined,
-        sessionToken: credentials.sessionToken
+        secretAccessKey: credentials.secretAccessKey
+            ? "***"
+            : undefined,
+        sessionToken: credentials.sessionToken,
     };
 };
 exports.getCurrentCredentials = getCurrentCredentials;
 // AWS Console 로그인 URL 생성 (region 기반)
-const generateAWSConsoleUrl = (region = 'us-east-1') => {
-    const baseUrl = 'https://signin.aws.amazon.com/console';
+const generateAWSConsoleUrl = (region = "us-east-1") => {
+    const baseUrl = "https://signin.aws.amazon.com/console";
     const params = new URLSearchParams({
         region: region,
-        destination: 'console'
+        destination: "console",
     });
     return `${baseUrl}?${params.toString()}`;
 };
 exports.generateAWSConsoleUrl = generateAWSConsoleUrl;
 // AWS CLI 자격 증명 설정 (사용자별)
-const configureAWSCredentials = (userId, accessKeyId, secretAccessKey, region = 'us-east-1', sessionToken) => {
+const configureAWSCredentials = (userId, accessKeyId, secretAccessKey, region = "us-east-1", sessionToken) => {
     // 사용자별 AWS 인스턴스 생성
     createUserAWSInstance(userId, accessKeyId, secretAccessKey, region);
     return {
         accessKeyId,
         secretAccessKey,
-        sessionToken
+        sessionToken,
     };
 };
 exports.configureAWSCredentials = configureAWSCredentials;

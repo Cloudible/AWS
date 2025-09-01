@@ -1,6 +1,7 @@
-import { ApplicationCommand, ApplicationCommandOptionType } from "discord.js";
+import { ApplicationCommand, ApplicationCommandOptionType, InteractionCallback, AutocompleteInteraction } from "discord.js";
 import { SlashCommand } from "../DTO/slashCommand.DTO";
 import { getEC2Info, getEC2List, letEC2MornitoringOff, letEC2MornitoringOn, letEC2Reboot, letEC2Start, letEC2Stop, getEC2MonitoringData, formatMonitoringData } from "../function/EC2.function";
+import { getEC2AutocompleteOptions } from "../middleWare/resourceManager";
 
 export const ec2Command : SlashCommand = {
     name : "ec2",
@@ -183,8 +184,9 @@ export const ec2Command : SlashCommand = {
                 {
                     name : "instance-name",
                     description : "인스턴스 이름",
-                    type : ApplicationCommandOptionType.String,
-                    required : true
+                    type : ApplicationCommandOptionType.String, 
+                    required : true,
+                    autocomplete : true // 자동 완성 추가
                 }
             ]
         },
@@ -278,7 +280,8 @@ export const ec2Command : SlashCommand = {
                     name : "instance-id",
                     description : "인스턴스 Id",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete: true
                 },
                 {
                     name : "state",
@@ -420,7 +423,8 @@ export const ec2Command : SlashCommand = {
                     name : "instance-id",
                     description : "인스턴스 Id",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete: true
                 },
                 {
                     name : "dry-run",
@@ -568,6 +572,31 @@ export const ec2Command : SlashCommand = {
                     flags : 64
                 });
             }
+        }
+    },
+
+    autocomplete: async(interaction: AutocompleteInteraction) => {
+        const focusData = interaction.options.getFocused(true); // slash command 입력 중인 값을 받아옴.
+        const userId = interaction.user.id;
+        
+        try {
+            if (focusData.name === 'instance-name' || focusData.name === 'instance-id') {
+                const options = getEC2AutocompleteOptions(userId);
+                const filtered = options.filter(option => 
+                    option.name.toLowerCase().includes(focusData.value.toLowerCase()) ||
+                    option.value.toLowerCase().includes(focusData.value.toLowerCase())
+                ).slice(0, 25);
+                
+                const discordOptions = filtered.map(option => ({
+                    name: option.name,
+                    value: option.value
+                }));
+
+                await interaction.respond(discordOptions);
+            }
+        } catch (error) {
+            console.error('EC2 Autocomplete error:', error);
+            await interaction.respond([]);
         }
     }
 }   

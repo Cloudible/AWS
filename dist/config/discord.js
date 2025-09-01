@@ -13,22 +13,32 @@ const client = new discord_js_1.Client({
     intents: [
         discord_js_1.GatewayIntentBits.Guilds,
         discord_js_1.GatewayIntentBits.GuildMessages,
-        discord_js_1.GatewayIntentBits.MessageContent
-    ]
+        discord_js_1.GatewayIntentBits.MessageContent,
+    ],
 });
 const startDiscordBot = async () => {
     await client.login(Token);
-    console.log('Discord bot is running');
-    client.on('ready', async () => {
+    console.log("Discord bot is running");
+    client.on("ready", async () => {
         if (client.application) {
+            console.log("등록할 명령어 목록:");
+            router_1.default.forEach((cmd) => {
+                console.log(`- ${cmd.name}: ${cmd.description}`);
+                if (cmd.options) {
+                    cmd.options.forEach((option) => {
+                        console.log(`  └─ ${option.name}: ${option.description}`);
+                    });
+                }
+            });
             await client.application.commands.set(router_1.default);
-            console.log('Slash commands registered');
+            console.log("Slash commands registered successfully");
         }
     });
 };
-client.on('interactionCreate', async (interaction) => {
+client.on("interactionCreate", async (interaction) => {
     if (interaction.isCommand()) {
-        const currentCommand = router_1.default.find(command => command.name === interaction.commandName);
+        console.log(`명령어 실행: ${interaction.commandName}`);
+        const currentCommand = router_1.default.find((command) => command.name === interaction.commandName);
         if (currentCommand) {
             currentCommand.execute(client, interaction);
         }

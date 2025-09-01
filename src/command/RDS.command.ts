@@ -1,4 +1,4 @@
-import { ApplicationCommandOptionType } from "discord.js";
+import { ApplicationCommandOptionType, AutocompleteInteraction } from "discord.js";
 import { SlashCommand } from "../DTO/slashCommand.DTO";
 import {
   createRDSInstance,
@@ -6,6 +6,7 @@ import {
   deleteRDSInstance,
   getRDSInstanceStatus,
 } from "../function/RDS.function";
+import { getRDSAutocompleteOptions } from "../middleWare/resourceManager";
 
 // DB 인스턴스 식별자 유효성 검사
 const isValidDBIdentifier = (identifier: string): boolean => {
@@ -105,6 +106,7 @@ export const rdsCommand: SlashCommand = {
           description: "DB 인스턴스 ID",
           type: ApplicationCommandOptionType.String,
           required: true,
+          autocomplete: true,
         },
         {
           name: "region",
@@ -333,6 +335,7 @@ export const rdsCommand: SlashCommand = {
           description: "삭제할 DB 인스턴스 ID",
           type: ApplicationCommandOptionType.String,
           required: true,
+          autocomplete: true,
         },
         {
           name: "skip-snapshot",
@@ -556,6 +559,30 @@ export const rdsCommand: SlashCommand = {
       } else {
         console.error("상호작용이 이미 응답됨:", errorMessage);
       }
+    }
+  },
+  autocomplete: async (interaction: AutocompleteInteraction) => {
+    const focusedOption = interaction.options.getFocused(true);
+    const userId = interaction.user.id;
+    
+    try {
+      if (focusedOption.name === 'id') {
+        const options = getRDSAutocompleteOptions(userId);
+        const filtered = options.filter(option => 
+          option.name.toLowerCase().includes(focusedOption.value.toLowerCase()) ||
+          option.value.toLowerCase().includes(focusedOption.value.toLowerCase())
+        ).slice(0, 25);
+        
+        const discordOptions = filtered.map(option => ({
+          name: option.name,
+          value: option.value
+        }));
+
+        await interaction.respond(discordOptions);
+      }
+    } catch (error) {
+      console.error('RDS Autocomplete error:', error);
+      await interaction.respond([]);
     }
   },
 };

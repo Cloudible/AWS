@@ -1,6 +1,7 @@
 import { SlashCommand } from "../DTO/slashCommand.DTO";
-import { ApplicationCommandOptionType, Client, ChatInputCommandInteraction } from "discord.js";
+import { ApplicationCommandOptionType, Client, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
 import { addRoutingTableRule, addSubnet, addSubnetGroup, attachSubnetGroup, createVPC, deleteSubnet, deleteVPC, listRoutingTables, listSubnet, listUpVPC } from "../function/VPC.function";
+import { getVPCAutocompleteOptions, getSubnetAutocompleteOptions } from "../middleWare/resourceManager";
 
 export const vpcCommand : SlashCommand ={
     name : "vpc",
@@ -202,7 +203,8 @@ export const vpcCommand : SlashCommand ={
                     name : "vpcid",
                     description : "VPC Id",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete: true
                 }
             ]
         },
@@ -384,7 +386,8 @@ export const vpcCommand : SlashCommand ={
                     name : "vpc-id",
                     description : "VPC ID 선택",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete: true
                 },
                 {
                     name : "subnet-name",
@@ -490,7 +493,8 @@ export const vpcCommand : SlashCommand ={
                     name : "subnet-id",
                     description : "Subnet 아이디",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete: true
                 }
             ]
         }, 
@@ -584,7 +588,8 @@ export const vpcCommand : SlashCommand ={
                     name : "vpc-id",
                     description : "VPC ID",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete: true
                 },
                 {
                     name : "name",
@@ -684,13 +689,15 @@ export const vpcCommand : SlashCommand ={
                     name : "routing-table-id",
                     description : "라우팅 테이블 ID",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete: true
                 },
                 {
                     name : "subnet-id",
                     description : "라우팅 테이블에 연결할 서브넷 ID",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete: true
                 }
             ]
         },
@@ -784,7 +791,8 @@ export const vpcCommand : SlashCommand ={
                     name : "routing-table-id",
                     description : "라우팅 테이블 ID",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete: true
                 },
                 {
                     name : "area",
@@ -996,7 +1004,8 @@ export const vpcCommand : SlashCommand ={
                     name : "vpc-id",
                     description : "VPC ID",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete: true
                 }
             ]
         },
@@ -1090,7 +1099,8 @@ export const vpcCommand : SlashCommand ={
                     name : "vpc-id",
                     description : "VPC ID",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete: true
                 }
             ]
         }
@@ -1300,5 +1310,57 @@ export const vpcCommand : SlashCommand ={
                     });
                 }
             }
+    },
+    autocomplete: async (interaction: AutocompleteInteraction) => {
+        const focusedOption = interaction.options.getFocused(true);
+        const userId = interaction.user.id;
+        
+        try {
+            if (focusedOption.name === 'vpcid' || focusedOption.name === 'vpc-id') {
+                const options = getVPCAutocompleteOptions(userId);
+                const filtered = options.filter(option => 
+                    option.name.toLowerCase().includes(focusedOption.value.toLowerCase()) ||
+                    option.vpcId.toLowerCase().includes(focusedOption.value.toLowerCase())
+                ).slice(0, 25);
+                
+                const discordOptions = filtered.map(option => ({
+                    name: option.name,
+                    value: option.vpcId
+                }));
+
+                await interaction.respond(discordOptions);
+            } else if (focusedOption.name === 'subnet-id') {
+                const options = getSubnetAutocompleteOptions(userId);
+                const filtered = options.filter(option => 
+                    option.name.toLowerCase().includes(focusedOption.value.toLowerCase()) ||
+                    option.value.toLowerCase().includes(focusedOption.value.toLowerCase())
+                ).slice(0, 25);
+                
+                const discordOptions = filtered.map(option => ({
+                    name: option.name,
+                    value: option.value
+                }));
+
+                await interaction.respond(discordOptions);
+            } else if (focusedOption.name === 'routing-table-id') {
+                // 라우팅 테이블 ID는 현재 VPC 기반으로 필터링할 수 있지만, 
+                // 간단히 모든 VPC를 보여주도록 함
+                const options = getVPCAutocompleteOptions(userId);
+                const filtered = options.filter(option => 
+                    option.name.toLowerCase().includes(focusedOption.value.toLowerCase()) ||
+                    option.vpcId.toLowerCase().includes(focusedOption.value.toLowerCase())
+                ).slice(0, 25);
+                
+                const discordOptions = filtered.map(option => ({
+                    name: option.name,
+                    value: option.vpcId
+                }));
+
+                await interaction.respond(discordOptions);
+            }
+        } catch (error) {
+            console.error('Autocomplete error:', error);
+            await interaction.respond([]);
+        }
     }
 }

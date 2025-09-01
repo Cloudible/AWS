@@ -1,4 +1,11 @@
 import { getUserAWSInstance } from "./AWS.function";
+import { 
+    addEC2Resource, 
+    removeEC2Resource, 
+    getEC2ByName, 
+    getEC2ById,
+    EC2Resource
+} from "../middleWare/resourceManager";
 
 export const getEC2List = async(
     userId: string,
@@ -31,9 +38,26 @@ export const getEC2List = async(
         let result = '';
         response.Reservations.forEach((reservation: any, index: number) => {
             reservation.Instances?.forEach((instance: any) => {
+                const instanceName = instance.Tags?.find((tag: any) => tag.Key === 'Name')?.Value || 'N/A';
+                
+                // 통합 데이터에 EC2 리소스 추가/업데이트
+                const ec2Resource: EC2Resource = {
+                    name: instanceName,
+                    region,
+                    instanceId: instance.InstanceId!,
+                    instanceName,
+                    state: instance.State?.Name || 'unknown',
+                    instanceType: instance.InstanceType!,
+                    publicIp: instance.PublicIpAddress,
+                    privateIp: instance.PrivateIpAddress,
+                    vpcId: instance.VpcId,
+                    subnetId: instance.SubnetId
+                };
+                addEC2Resource(userId, ec2Resource);
+                
                 result += `**인스턴스 ${index + 1}:**\n`;
                 result += `- 인스턴스 ID: ${instance.InstanceId}\n`;
-                result += `- 인스턴스 이름: ${instance.Tags?.find((tag: any) => tag.Key === 'Name')?.Value || 'N/A'}\n`;
+                result += `- 인스턴스 이름: ${instanceName}\n`;
                 result += `- 상태: ${instance.State?.Name}\n`;
                 result += '\n';
             });
