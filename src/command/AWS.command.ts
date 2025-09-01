@@ -1,5 +1,6 @@
-import { ApplicationCommandOptionType, Options, VoiceRegion } from "discord.js";
+import { ApplicationCommandOptionType, Options, VoiceRegion, MessageFlags } from "discord.js";
 import { SlashCommand } from "../DTO/slashCommand.DTO";
+import { InteractionHandler } from "../middleWare/interactionHandler";
 import { 
     generateAWSConsoleUrl,
     configureAWSCredentials,
@@ -358,20 +359,26 @@ export const awsCommand : SlashCommand = {
                 await interaction.reply(`IAM 사용자 목록:\n\n**사용자:** <@${userId}>\n\n${iamList}`);
             } else if(subcommand === "aws-region-sync") {
                 const region = interaction.options.getString("region");
+                const handler = new InteractionHandler(interaction);
 
-                await syncAwsAccount(userId!, region!);
-                await interaction.reply(`해당 리전에 맞게 AWS 계정 동기화\n\n**사용자:** <@${userId}>\n**리전:** ${region}\n\n`);
+                try {
+                    // 즉시 응답
+                    await handler.replyImmediately(`🔄 AWS 계정 동기화를 시작합니다...\n\n**사용자:** <@${userId}>\n**리전:** ${region}\n\n잠시만 기다려주세요.`);
+                    
+                    // 동기화 실행
+                    await syncAwsAccount(userId!, region!);
+                    
+                    // 성공 메시지
+                    await handler.updateWithSuccess(`AWS 계정 동기화 완료!\n\n**사용자:** <@${userId}>\n**리전:** ${region}\n\n모든 리소스 정보가 업데이트되었습니다.`);
+                    
+                } catch (syncError) {
+                    // 에러 메시지
+                    await handler.updateWithError(syncError, `AWS 계정 동기화 (리전: ${region})`);
+                }
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            
-            // 이미 응답했는지 확인
-            if (!interaction.replied) {
-                await interaction.reply({
-                    content: `AWS 명령어 실행 중 오류가 발생했습니다:\n\n**오류:** ${errorMessage}\n\n**해결 방법:**\n1. 자격 증명이 올바른지 확인하세요\n2. \`/aws validate\` 명령어로 유효성을 확인하세요\n3. 필요한 권한이 있는지 확인하세요`,
-                    flags: 64
-                });
-            }
+            const handler = new InteractionHandler(interaction);
+            await handler.updateWithError(error, "AWS 명령어 실행");
         }
     }
 }

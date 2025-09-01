@@ -2,6 +2,7 @@ import { ApplicationCommand, ApplicationCommandOptionType, InteractionCallback, 
 import { SlashCommand } from "../DTO/slashCommand.DTO";
 import { getEC2Info, getEC2List, letEC2MornitoringOff, letEC2MornitoringOn, letEC2Reboot, letEC2Start, letEC2Stop, getEC2MonitoringData, formatMonitoringData } from "../function/EC2.function";
 import { getEC2AutocompleteOptions } from "../middleWare/resourceManager";
+import { InteractionHandler } from "../middleWare/interactionHandler";
 
 export const ec2Command : SlashCommand = {
     name : "ec2",
@@ -446,42 +447,45 @@ export const ec2Command : SlashCommand = {
     execute : async(client, interaction) => {
         const subcommand = interaction.options.getSubcommand();
         const userId = interaction.user.id;
+        
+        try {
 
         if(subcommand == "list-up") {
+            const handler = new InteractionHandler(interaction);
+            
             try {
                 const region = interaction.options.getString("region");
                 
+                // 즉시 응답
+                await handler.replyImmediately(`🔄 EC2 인스턴스 목록을 조회하고 있습니다...\n\n**리전:** ${region}\n\n잠시만 기다려주세요.`);
+                
                 const ec2List = await getEC2List(userId, region!);
-                await interaction.reply({
-                    content: `**EC2 인스턴스 목록 조회**\n\n**리전:** (${region})\n\n${ec2List}`,
-                    flags: 64
-                });
-            }catch(error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                await interaction.reply({
-                    content : `EC2 인스턴스 목록 조회 실패 : ${errorMessage}`,
-                    flags : 64
-                });
+                
+                // 성공 메시지
+                await handler.updateWithSuccess(`EC2 인스턴스 목록 조회 완료!\n\n**리전:** ${region}\n\n${ec2List}`);
+            } catch(error) {
+                await handler.updateWithError(error, "EC2 인스턴스 목록 조회");
             }
         } else if(subcommand == "specify-instance") {
+            const handler = new InteractionHandler(interaction);
+            
             try {
                 const region = interaction.options.getString("region");
                 const instanceName = interaction.options.getString("instance-name");
 
-                const ec2Info = await getEC2Info(userId, region!, instanceName!);
-                await interaction.reply({
-                    content : `**EC2 인스턴스 조회**\n\n**리전:** (${region})\n**인스턴스 이름:** ${instanceName}\n\n${ec2Info}`,
-                    flags : 64
-                });
+                // 즉시 응답
+                await handler.replyImmediately(`🔄 EC2 인스턴스 정보를 조회하고 있습니다...\n\n**리전:** ${region}\n**인스턴스 이름:** ${instanceName}\n\n잠시만 기다려주세요.`);
 
+                const ec2Info = await getEC2Info(userId, region!, instanceName!);
+                
+                // 성공 메시지
+                await handler.updateWithSuccess(`EC2 인스턴스 조회 완료!\n\n**리전:** ${region}\n**인스턴스 이름:** ${instanceName}\n\n${ec2Info}`);
             } catch(error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                await interaction.reply({
-                    content : `EC2 인스턴스 조회 실패 : ${errorMessage}`,
-                    flags : 64
-                });
+                await handler.updateWithError(error, "EC2 인스턴스 조회");
             }
         } else if(subcommand == "state-change") {
+            const handler = new InteractionHandler(interaction);
+            
             try {   
                 const region = interaction.options.getString("region"); 
                 const intstanceId = interaction.options.getString("instance-id");
@@ -489,38 +493,28 @@ export const ec2Command : SlashCommand = {
                 const hibernation = interaction.options.getBoolean("hibernation");
                 const state = interaction.options.getString("state");
 
+                // 즉시 응답
+                await handler.replyImmediately(`🔄 EC2 인스턴스 상태를 변경하고 있습니다...\n\n**리전:** ${region}\n**인스턴스 ID:** ${intstanceId}\n**상태:** ${state}\n\n잠시만 기다려주세요.`);
+
                 if(state == "run") {
                     await letEC2Start(userId!, region!, intstanceId!, dryRun!);
-                    await interaction.reply({
-                        content : `**EC2 인스턴스 실행**\n\n**리전:** (${region})\n**인스턴스 Id:** ${intstanceId}\n**DryRun:** ${dryRun}\n**절전 모드:** ${hibernation}`,
-                        flags : 64
-                    });
+                    await handler.updateWithSuccess(`EC2 인스턴스 실행 완료!\n\n**리전:** ${region}\n**인스턴스 Id:** ${intstanceId}\n**DryRun:** ${dryRun}\n**절전 모드:** ${hibernation}`);
                 } else if(state == "stop") {
                     await letEC2Stop(userId! ,region!, intstanceId!, dryRun!, hibernation!);
-                    await interaction.reply({
-                        content : `**EC2 인스턴스 중지**\n\n**리전:** (${region})\n**인스턴스 Id:** ${intstanceId}\n**DryRun:** ${dryRun}\n**절전 모드:** ${hibernation}`,
-                        flags : 64
-                    });
+                    await handler.updateWithSuccess(`EC2 인스턴스 중지 완료!\n\n**리전:** ${region}\n**인스턴스 Id:** ${intstanceId}\n**DryRun:** ${dryRun}\n**절전 모드:** ${hibernation}`);
                 } else if(state == "reboot") {
                     await letEC2Reboot(userId! ,region!, intstanceId!, dryRun!);
-                    await interaction.reply({
-                        content : `**EC2 인스턴스 재부팅**\n\n**리전:** (${region})\n**인스턴스 Id:** ${intstanceId}\n**DryRun:** ${dryRun}`,
-                    });
+                    await handler.updateWithSuccess(`EC2 인스턴스 재부팅 완료!\n\n**리전:** ${region}\n**인스턴스 Id:** ${intstanceId}\n**DryRun:** ${dryRun}`);
                 } else {
-                    await interaction.reply({
-                        content : "올바른 상태를 입력해주세요.",
-                        flags : 64
-                    });
+                    await handler.updateReply("❌ 올바른 상태를 입력해주세요.");
                 }
 
             } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                await interaction.reply({
-                    content : `EC2 상태 변경 실패 : ${errorMessage}`,
-                    flags : 64
-                });
+                await handler.updateWithError(error, "EC2 상태 변경");
             }
         } else if(subcommand === "monitoring-instance") {
+            const handler = new InteractionHandler(interaction);
+            
             try {
                 const region = interaction.options.getString("region");
                 const instanceId = interaction.options.getString("instance-id");
@@ -528,7 +522,10 @@ export const ec2Command : SlashCommand = {
                 const switchMornitoring = interaction.options.getString("monitoring-toggle");
                 const monitoringInterval = interaction.options.getInteger("hours") || 1;
 
-                let responseMessage = `**EC2 인스턴스 모니터링 전환**\n\n**리전:** (${region})\n**인스턴스 Id:** ${instanceId}\n**DryRun:** ${dryRun}\n**state:** ${switchMornitoring}`;
+                // 즉시 응답
+                await handler.replyImmediately(`🔄 EC2 인스턴스 모니터링을 설정하고 있습니다...\n\n**리전:** ${region}\n**인스턴스 ID:** ${instanceId}\n**상태:** ${switchMornitoring}\n\n잠시만 기다려주세요.`);
+
+                let responseMessage = `**EC2 인스턴스 모니터링 전환**\n\n**리전:** ${region}\n**인스턴스 Id:** ${instanceId}\n**DryRun:** ${dryRun}\n**state:** ${switchMornitoring}`;
 
                 if(switchMornitoring === 'on') {
                     // 모니터링 활성화
@@ -560,19 +557,16 @@ export const ec2Command : SlashCommand = {
                     responseMessage += `\n\n💰 **비용 절약:** 모니터링 비용이 발생하지 않습니다.`;
                 }
                 
-                await interaction.reply({
-                    content : responseMessage,
-                    flags : 64
-                });
+                await handler.updateReply(responseMessage);
 
             } catch (error) {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                await interaction.reply({
-                    content : `모니터링 전환 실패 : ${errorMessage}`,
-                    flags : 64
-                });
+                await handler.updateWithError(error, "EC2 모니터링 전환");
             }
         }
+    } catch (error) {
+        const handler = new InteractionHandler(interaction);
+        await handler.updateWithError(error, "EC2 명령어 실행");
+    }
     },
 
     autocomplete: async(interaction: AutocompleteInteraction) => {

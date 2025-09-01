@@ -531,8 +531,8 @@ export const listRoutingTables = async (
             const routeTableName = routeTable.Tags?.find((tag: any) => tag.Key === 'Name')?.Value || '이름 없음';
             const routeTableId = routeTable.RouteTableId;
             
-            result += `**${routeTableName}**\n`;
-            result += `**라우팅 테이블 ID:** ${routeTableId}\n\n`;
+            result += `**${routeTableName} : **`;
+            result += `${routeTableId}\n`;
 
             // 해당 라우팅 테이블에 연결된 서브넷들 찾기
             const associatedSubnets = subnetsResponse.Subnets.filter((subnet: any) => {
@@ -543,15 +543,15 @@ export const listRoutingTables = async (
             });
 
             if (associatedSubnets.length === 0) {
-                result += `   연결된 서브넷이 없습니다.\n\n`;
+                result += `   • 연결된 서브넷이 없습니다.\n\n`;
             } else {
                 associatedSubnets.forEach((subnet: any, subnetIndex: number) => {
                     const subnetName = subnet.Tags?.find((tag: any) => tag.Key === 'Name')?.Value || '이름 없음';
-                    result += `   **${subnetIndex + 1}. ${subnetName}**\n`;
-                    result += `      **서브넷 ID:** ${subnet.SubnetId}\n`;
-                    result += `      **CIDR:** ${subnet.CidrBlock}\n`;
-                    result += `      **가용영역:** ${subnet.AvailabilityZone}\n`;
-                    result += `      **상태:** ${subnet.State}\n\n`;
+                    result += `      **${subnetIndex + 1}.** ${subnetName}\n`;
+                    result += `            서브넷 ID: ${subnet.SubnetId}\n`;
+                    result += `            CIDR: ${subnet.CidrBlock}\n`;
+                    result += `            가용영역: ${subnet.AvailabilityZone}\n`;
+                    result += `            상태: ${subnet.State}\n\n`;
                 });
             }
         });

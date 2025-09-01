@@ -2,6 +2,7 @@ import { SlashCommand } from "../DTO/slashCommand.DTO";
 import { ApplicationCommandOptionType, Client, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
 import { addRoutingTableRule, addSubnet, addSubnetGroup, attachSubnetGroup, createVPC, deleteSubnet, deleteVPC, listRoutingTables, listSubnet, listUpVPC, deleteRouteTable, deleteRouteTableRule, detachSubnetFromRouteTable } from "../function/VPC.function";
 import { getVPCAutocompleteOptions, getSubnetAutocompleteOptions, getRouteTableAutocompleteOptions } from "../middleWare/resourceManager";
+import { InteractionHandler } from "../middleWare/interactionHandler";
 
 export const vpcCommand : SlashCommand ={
     name : "vpc",
@@ -1398,27 +1399,28 @@ export const vpcCommand : SlashCommand ={
     execute : async(client : Client, interaction : ChatInputCommandInteraction) => {
         const subcommand = interaction.options.getSubcommand();
         const userId = interaction.user.id;
+        
+        try {
 
             if(subcommand === "create") {
+                const handler = new InteractionHandler(interaction);
+                
                 try {
                     const region = interaction.options.getString("region");
                     const cidr = interaction.options.getString("cidr");
                     const vpcName = interaction.options.getString("vpc-name");
                     const internetGateway = interaction.options.getBoolean("internet-gateway");
     
+                    // 즉시 응답
+                    await handler.replyImmediately(`🔄 VPC 생성을 시작합니다...\n\n**리전:** ${region}\n**CIDR:** ${cidr}\n**VPC 이름:** ${vpcName}\n\n잠시만 기다려주세요.`);
+    
                     // function call
                     const response = await createVPC(userId!, region!, cidr!, vpcName!, internetGateway!);
     
-                    await interaction.reply({
-                        content : `**VPC 생성**\n\n**리전:** (${region})\n**CIDR:** ${cidr}\n**VPC ID:** ${response.vpcId}\n**VPC 이름:** ${vpcName}\n**InternetGateWay Id:** ${response.internetGatewayId ?? '생성 안함'}\n**InternetGateWay name:** ${response.internetGatewayName ?? '생성 안함'}\n`,
-                        flags : 64
-                    });
+                    // 성공 메시지
+                    await handler.updateWithSuccess(`VPC 생성 완료!\n\n**리전:** ${region}\n**CIDR:** ${cidr}\n**VPC ID:** ${response.vpcId}\n**VPC 이름:** ${vpcName}\n**InternetGateWay Id:** ${response.internetGatewayId ?? '생성 안함'}\n**InternetGateWay name:** ${response.internetGatewayName ?? '생성 안함'}`);
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    await interaction.reply({
-                        content: `VPC 생성에 실패했습니다 :  ${errorMessage}`,
-                        flags: 64
-                    });
+                    await handler.updateWithError(error, "VPC 생성");
                 }
             } else if(subcommand === "list-up") {
                 try {
@@ -1439,64 +1441,58 @@ export const vpcCommand : SlashCommand ={
                     });
                 }
             } else if(subcommand === "add-subnet") {
+                const handler = new InteractionHandler(interaction);
+                
                 try {
                     const region = interaction.options.getString("region");
                     const vpcId = interaction.options.getString("vpc-id");
                     const subnetName = interaction.options.getString("subnet-name");
                     const cidr = interaction.options.getString("cidr");
                     
+                    // 즉시 응답
+                    await handler.replyImmediately(`🔄 서브넷 생성을 시작합니다...\n\n**리전:** ${region}\n**VPC ID:** ${vpcId}\n**서브넷 이름:** ${subnetName}\n**CIDR:** ${cidr}\n\n잠시만 기다려주세요.`);
+                    
                     // function call
                     const response = await addSubnet(userId!, region!, vpcId!, subnetName!, cidr!);
 
-                    await interaction.reply({
-                        content : `**서브넷 추가**\n\n**리전:** (${region})\n**Subnet ID:** ${response.subnetId}\n**서브넷 이름:** ${response.subnetName}\n**CIDR:** ${response.cidrBlock}\n**state:** ${response.state}`,
-                        flags : 64
-                    });
-
+                    // 성공 메시지
+                    await handler.updateWithSuccess(`서브넷 생성 완료!\n\n**리전:** ${region}\n**Subnet ID:** ${response.subnetId}\n**서브넷 이름:** ${response.subnetName}\n**CIDR:** ${response.cidrBlock}\n**state:** ${response.state}`);
                 } catch(error) {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    await interaction.reply({
-                        content : `서브넷 추가에 실패했습니다. : ${errorMessage}`,
-                        flags : 64
-                    });
+                    await handler.updateWithError(error, "서브넷 생성");
                 }
             } else if(subcommand === "delete-subnet") {
+                const handler = new InteractionHandler(interaction);
+                
                 try {
                     const region = interaction.options.getString("region");
                     const subnetId = interaction.options.getString("subnet-id");
 
+                    // 즉시 응답
+                    await handler.replyImmediately(`🔄 서브넷 삭제를 시작합니다...\n\n**리전:** ${region}\n**서브넷 ID:** ${subnetId}\n\n잠시만 기다려주세요.`);
+
                     await deleteSubnet(userId!, region!, subnetId!);
 
-                    await interaction.reply({
-                        content : `**서브넷 삭제**\n\n**리전:** (${region})\n**서브넷 아이디:** ${subnetId}`,
-                        flags : 64
-                    });
-
+                    // 성공 메시지
+                    await handler.updateWithSuccess(`서브넷 삭제 완료!\n\n**리전:** ${region}\n**서브넷 아이디:** ${subnetId}`);
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    await interaction.reply({
-                        content : `서브넷 삭제에 실패했습니다. : ${errorMessage}`,
-                        flags : 64
-                    });
+                    await handler.updateWithError(error, "서브넷 삭제");
                 }
             } else if(subcommand === "delete-vpc") {
+                const handler = new InteractionHandler(interaction);
+                
                 try {
                     const region = interaction.options.getString("region");
                     const vpcId = interaction.options.getString("vpcid");
 
+                    // 즉시 응답
+                    await handler.replyImmediately(`🔄 VPC 삭제를 시작합니다...\n\n**리전:** ${region}\n**VPC ID:** ${vpcId}\n\n잠시만 기다려주세요.`);
+
                     const response = await deleteVPC(userId!, region!, vpcId!);
 
-                    await interaction.reply({
-                        content : `**VPC 삭제**\n\n**리전:** (${region})\n**VPC 아이디:** ${vpcId}\n**InternetGateWay Id:** ${response.internetGatewayId}\n`,
-                        flags : 64
-                    });
-
+                    // 성공 메시지
+                    await handler.updateWithSuccess(`VPC 삭제 완료!\n\n**리전:** ${region}\n**VPC 아이디:** ${vpcId}\n**InternetGateWay Id:** ${response.internetGatewayId}`);
                 } catch (error) {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    await interaction.reply({
-                        content : `VPC 삭제에 실패했습니다. : ${errorMessage}`,
-                        flags : 64
-                    });
+                    await handler.updateWithError(error, "VPC 삭제");
                 }
             } else if(subcommand === "add-routing-table") {
                 try {
@@ -1658,6 +1654,10 @@ export const vpcCommand : SlashCommand ={
                     });
                 }
             }
+        } catch (error) {
+            const handler = new InteractionHandler(interaction);
+            await handler.updateWithError(error, "VPC 명령어 실행");
+        }
     },
     autocomplete: async (interaction: AutocompleteInteraction) => {
         const focusedOption = interaction.options.getFocused(true);
