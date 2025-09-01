@@ -1,7 +1,7 @@
 import { SlashCommand } from "../DTO/slashCommand.DTO";
 import { ApplicationCommandOptionType, Client, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
-import { addRoutingTableRule, addSubnet, addSubnetGroup, attachSubnetGroup, createVPC, deleteSubnet, deleteVPC, listRoutingTables, listSubnet, listUpVPC } from "../function/VPC.function";
-import { getVPCAutocompleteOptions, getSubnetAutocompleteOptions } from "../middleWare/resourceManager";
+import { addRoutingTableRule, addSubnet, addSubnetGroup, attachSubnetGroup, createVPC, deleteSubnet, deleteVPC, listRoutingTables, listSubnet, listUpVPC, deleteRouteTable, deleteRouteTableRule, detachSubnetFromRouteTable } from "../function/VPC.function";
+import { getVPCAutocompleteOptions, getSubnetAutocompleteOptions, getRouteTableAutocompleteOptions } from "../middleWare/resourceManager";
 
 export const vpcCommand : SlashCommand ={
     name : "vpc",
@@ -1103,6 +1103,296 @@ export const vpcCommand : SlashCommand ={
                     autocomplete: true
                 }
             ]
+        },
+        {
+            name : "delete-routing-table",
+            description : "라우팅 테이블을 삭제합니다.",
+            type : ApplicationCommandOptionType.Subcommand,
+            options : [
+                {
+                    name : "region",
+                    description : "리전 선택",
+                    type : ApplicationCommandOptionType.String,
+                    required : true,
+                    choices : [
+                        // 미국 리전
+                        {
+                            name : "🇺🇸 미국 - 버지니아 북부",
+                            value : "us-east-1"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 오하이오",
+                            value : "us-east-2"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 캘리포니아",
+                            value : "us-west-1"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 오레곤",
+                            value : "us-west-2"
+                        },
+                        // 아시아 태평양 리전
+                        {
+                            name : "🇮🇳 아시아 - 뭄바이",
+                            value : "ap-south-1"
+                        },
+                        {
+                            name : "🇯🇵 아시아 - 도쿄",
+                            value : "ap-northeast-1"
+                        },
+                        {
+                            name : "🇰🇷 아시아 - 서울",
+                            value : "ap-northeast-2"
+                        },
+                        {
+                            name : "🇯🇵 아시아 - 오사카",
+                            value : "ap-northeast-3"
+                        },
+                        {
+                            name : "🇸🇬 아시아 - 싱가포르",
+                            value : "ap-southeast-1"
+                        },
+                        {
+                            name : "🇦🇺 아시아 - 시드니",
+                            value : "ap-southeast-2"
+                        },
+                        // 캐나다 리전
+                        {
+                            name : "🇨🇦 캐나다 - 중부",
+                            value : "ca-central-1"
+                        },
+                        // 유럽 리전
+                        {
+                            name : "🇩🇪 유럽 - 프랑크푸르트",
+                            value : "eu-central-1"
+                        },
+                        {
+                            name : "🇮🇪 유럽 - 아일랜드",
+                            value : "eu-west-1"
+                        },
+                        {
+                            name : "🇬🇧 유럽 - 런던",
+                            value : "eu-west-2"
+                        },
+                        {
+                            name : "🇫🇷 유럽 - 파리",
+                            value : "eu-west-3"
+                        },
+                        {
+                            name : "🇸🇪 유럽 - 스톡홀름",
+                            value : "eu-north-1"
+                        },
+                        // 남아메리카 리전
+                        {
+                            name : "🇧🇷 남아메리카 - 상파울루",
+                            value : "sa-east-1"
+                        }
+                    ]
+                },
+                {
+                    name : "routing-table-id",
+                    description : "라우팅 테이블 ID",
+                    type : ApplicationCommandOptionType.String,
+                    required : true,
+                    autocomplete: true
+                }
+            ]
+        },
+        {
+            name : "delete-routing-table-rule",
+            description : "라우팅 테이블 규칙을 삭제합니다.",
+            type : ApplicationCommandOptionType.Subcommand,
+            options : [
+                {
+                    name : "region",
+                    description : "리전 선택",
+                    type : ApplicationCommandOptionType.String,
+                    required : true,
+                    choices : [
+                        // 미국 리전
+                        {
+                            name : "🇺🇸 미국 - 버지니아 북부",
+                            value : "us-east-1"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 오하이오",
+                            value : "us-east-2"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 캘리포니아",
+                            value : "us-west-1"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 오레곤",
+                            value : "us-west-2"
+                        },
+                        // 아시아 태평양 리전
+                        {
+                            name : "🇮🇳 아시아 - 뭄바이",
+                            value : "ap-south-1"
+                        },
+                        {
+                            name : "🇯🇵 아시아 - 도쿄",
+                            value : "ap-northeast-1"
+                        },
+                        {
+                            name : "🇰🇷 아시아 - 서울",
+                            value : "ap-northeast-2"
+                        },
+                        {
+                            name : "🇯🇵 아시아 - 오사카",
+                            value : "ap-northeast-3"
+                        },
+                        {
+                            name : "🇸🇬 아시아 - 싱가포르",
+                            value : "ap-southeast-1"
+                        },
+                        {
+                            name : "🇦🇺 아시아 - 시드니",
+                            value : "ap-southeast-2"
+                        },
+                        // 캐나다 리전
+                        {
+                            name : "🇨🇦 캐나다 - 중부",
+                            value : "ca-central-1"
+                        },
+                        // 유럽 리전
+                        {
+                            name : "🇩🇪 유럽 - 프랑크푸르트",
+                            value : "eu-central-1"
+                        },
+                        {
+                            name : "🇮🇪 유럽 - 아일랜드",
+                            value : "eu-west-1"
+                        },
+                        {
+                            name : "🇬🇧 유럽 - 런던",
+                            value : "eu-west-2"
+                        },
+                        {
+                            name : "🇫🇷 유럽 - 파리",
+                            value : "eu-west-3"
+                        },
+                        {
+                            name : "🇸🇪 유럽 - 스톡홀름",
+                            value : "eu-north-1"
+                        },
+                        // 남아메리카 리전
+                        {
+                            name : "🇧🇷 남아메리카 - 상파울루",
+                            value : "sa-east-1"
+                        }
+                    ]
+                },
+                {
+                    name : "routing-table-id",
+                    description : "라우팅 테이블 ID",
+                    type : ApplicationCommandOptionType.String,
+                    required : true,
+                    autocomplete: true
+                },
+                {
+                    name : "destination-cidr",
+                    description : "삭제할 라우트의 대상 CIDR (예: 0.0.0.0/0)",
+                    type : ApplicationCommandOptionType.String,
+                    required : true
+                }
+            ]
+        },
+        {
+            name : "detach-subnet-from-routing-table",
+            description : "서브넷을 라우팅 테이블에서 연결 해제합니다.",
+            type : ApplicationCommandOptionType.Subcommand,
+            options : [
+                {
+                    name : "region",
+                    description : "리전 선택",
+                    type : ApplicationCommandOptionType.String,
+                    required : true,
+                    choices : [
+                        // 미국 리전
+                        {
+                            name : "🇺🇸 미국 - 버지니아 북부",
+                            value : "us-east-1"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 오하이오",
+                            value : "us-east-2"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 캘리포니아",
+                            value : "us-west-1"
+                        },
+                        {
+                            name : "🇺🇸 미국 - 오레곤",
+                            value : "us-west-2"
+                        },
+                        // 아시아 태평양 리전
+                        {
+                            name : "🇮🇳 아시아 - 뭄바이",
+                            value : "ap-south-1"
+                        },
+                        {
+                            name : "🇯🇵 아시아 - 도쿄",
+                            value : "ap-northeast-1"
+                        },
+                        {
+                            name : "🇰🇷 아시아 - 서울",
+                            value : "ap-northeast-2"
+                        },
+                        {
+                            name : "🇯🇵 아시아 - 오사카",
+                            value : "ap-northeast-3"
+                        },
+                        {
+                            name : "🇸🇬 아시아 - 싱가포르",
+                            value : "ap-southeast-1"
+                        },
+                        {
+                            name : "🇦🇺 아시아 - 시드니",
+                            value : "ap-southeast-2"
+                        },
+                        // 캐나다 리전
+                        {
+                            name : "🇨🇦 캐나다 - 중부",
+                            value : "ca-central-1"
+                        },
+                        // 유럽 리전
+                        {
+                            name : "🇩🇪 유럽 - 프랑크푸르트",
+                            value : "eu-central-1"
+                        },
+                        {
+                            name : "🇮🇪 유럽 - 아일랜드",
+                            value : "eu-west-1"
+                        },
+                        {
+                            name : "🇬🇧 유럽 - 런던",
+                            value : "eu-west-2"
+                        },
+                        {
+                            name : "🇫🇷 유럽 - 파리",
+                            value : "eu-west-3"
+                        },
+                        {
+                            name : "🇸🇪 유럽 - 스톡홀름",
+                            value : "eu-north-1"
+                        },
+                        // 남아메리카 리전
+                        {
+                            name : "🇧🇷 남아메리카 - 상파울루",
+                            value : "sa-east-1"
+                        }
+                    ]
+                },
+                {
+                    name : "association-id",
+                    description : "연결 해제할 서브넷의 연결 ID",
+                    type : ApplicationCommandOptionType.String,
+                    required : true
+                }
+            ]
         }
     ],
     execute : async(client : Client, interaction : ChatInputCommandInteraction) => {
@@ -1309,6 +1599,64 @@ export const vpcCommand : SlashCommand ={
                         flags : 64
                     });
                 }
+            } else if(subcommand === "delete-routing-table") {
+                try {
+                    const region = interaction.options.getString("region");
+                    const routingTableId = interaction.options.getString("routing-table-id");
+
+                    await deleteRouteTable(userId!, region!, routingTableId!);
+
+                    await interaction.reply({
+                        content : `**라우팅 테이블 삭제**\n\n**리전:** (${region})\n**라우팅 테이블 ID:** ${routingTableId}`,
+                        flags : 64
+                    });
+
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    await interaction.reply({
+                        content : `라우팅 테이블 삭제에 실패했습니다. : ${errorMessage}`,
+                        flags : 64
+                    });
+                }
+            } else if(subcommand === "delete-routing-table-rule") {
+                try {
+                    const region = interaction.options.getString("region");
+                    const routingTableId = interaction.options.getString("routing-table-id");
+                    const destinationCidr = interaction.options.getString("destination-cidr");
+
+                    await deleteRouteTableRule(userId!, region!, routingTableId!, destinationCidr!);
+
+                    await interaction.reply({
+                        content : `**라우팅 테이블 규칙 삭제**\n\n**리전:** (${region})\n**라우팅 테이블 ID:** ${routingTableId}\n**삭제된 대상 CIDR:** ${destinationCidr}`,
+                        flags : 64
+                    });
+
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    await interaction.reply({
+                        content : `라우팅 테이블 규칙 삭제에 실패했습니다. : ${errorMessage}`,
+                        flags : 64
+                    });
+                }
+            } else if(subcommand === "detach-subnet-from-routing-table") {
+                try {
+                    const region = interaction.options.getString("region");
+                    const associationId = interaction.options.getString("association-id");
+
+                    await detachSubnetFromRouteTable(userId!, region!, associationId!);
+
+                    await interaction.reply({
+                        content : `**서브넷 연결 해제**\n\n**리전:** (${region})\n**연결 ID:** ${associationId}`,
+                        flags : 64
+                    });
+
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    await interaction.reply({
+                        content : `서브넷 연결 해제에 실패했습니다. : ${errorMessage}`,
+                        flags : 64
+                    });
+                }
             }
     },
     autocomplete: async (interaction: AutocompleteInteraction) => {
@@ -1320,12 +1668,12 @@ export const vpcCommand : SlashCommand ={
                 const options = getVPCAutocompleteOptions(userId);
                 const filtered = options.filter(option => 
                     option.name.toLowerCase().includes(focusedOption.value.toLowerCase()) ||
-                    option.vpcId.toLowerCase().includes(focusedOption.value.toLowerCase())
+                    option.value.toLowerCase().includes(focusedOption.value.toLowerCase())
                 ).slice(0, 25);
                 
                 const discordOptions = filtered.map(option => ({
                     name: option.name,
-                    value: option.vpcId
+                    value: option.value
                 }));
 
                 await interaction.respond(discordOptions);
@@ -1343,17 +1691,16 @@ export const vpcCommand : SlashCommand ={
 
                 await interaction.respond(discordOptions);
             } else if (focusedOption.name === 'routing-table-id') {
-                // 라우팅 테이블 ID는 현재 VPC 기반으로 필터링할 수 있지만, 
-                // 간단히 모든 VPC를 보여주도록 함
-                const options = getVPCAutocompleteOptions(userId);
+                // 라우팅 테이블 ID 자동완성
+                const options = getRouteTableAutocompleteOptions(userId);
                 const filtered = options.filter(option => 
                     option.name.toLowerCase().includes(focusedOption.value.toLowerCase()) ||
-                    option.vpcId.toLowerCase().includes(focusedOption.value.toLowerCase())
+                    option.value.toLowerCase().includes(focusedOption.value.toLowerCase())
                 ).slice(0, 25);
                 
                 const discordOptions = filtered.map(option => ({
                     name: option.name,
-                    value: option.vpcId
+                    value: option.value
                 }));
 
                 await interaction.respond(discordOptions);
