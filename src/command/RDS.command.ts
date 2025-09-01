@@ -7,6 +7,7 @@ import {
   getRDSInstanceStatus,
 } from "../function/RDS.function";
 import { getRDSAutocompleteOptions } from "../middleWare/resourceManager";
+import { InteractionHandler } from "../middleWare/interactionHandler";
 
 // DB 인스턴스 식별자 유효성 검사
 const isValidDBIdentifier = (identifier: string): boolean => {
@@ -352,74 +353,77 @@ export const rdsCommand: SlashCommand = {
 
     try {
       if (sub === "list") {
-        const region =
-          interaction.options.getString("region") ||
-          "ap-northeast-2";
-        const list = await listRDSInstances(userId, region);
+        const handler = new InteractionHandler(interaction);
+        
+        try {
+          const region =
+            interaction.options.getString("region") ||
+            "ap-northeast-2";
+          
+          // 즉시 응답
+          await handler.replyImmediately(`🔄 RDS 인스턴스 목록을 조회하고 있습니다...\n\n**리전:** ${region}\n\n잠시만 기다려주세요.`);
+          
+          const list = await listRDSInstances(userId, region);
 
-        if (!list || !list.length) {
-          await interaction.reply({
-            content: `📋 **${region} 리전에 RDS 인스턴스가 없습니다.**`,
-            ephemeral: true,
-            flags: 64,
-          });
-          return;
+          if (!list || !list.length) {
+            await handler.updateReply(`📋 **${region} 리전에 RDS 인스턴스가 없습니다.**`);
+            return;
+          }
+
+          const msg = list
+            .map(
+              (rds: any) =>
+                `🔹 **${rds.id}**\n` +
+                `   • 상태: ${rds.status}\n` +
+                `   • 엔진: ${rds.engine}\n` +
+                `   • 인스턴스 클래스: ${rds.instanceClass}\n` +
+                `   • 엔드포인트: ${rds.endpoint}:${rds.port}\n` +
+                `   • 가용 영역: ${rds.availabilityZone}\n` +
+                `   • 스토리지: ${rds.allocatedStorage}GB\n` +
+                `   • Multi-AZ: ${rds.multiAZ ? "✅" : "❌"}\n` +
+                `   • 암호화: ${
+                  rds.storageEncrypted ? "🔒" : "🔓"
+                }`
+            )
+            .join("\n\n");
+
+          await handler.updateWithSuccess(`RDS 인스턴스 목록 조회 완료!\n\n**리전:** ${region}\n\n${msg}`);
+        } catch (error) {
+          await handler.updateWithError(error, "RDS 인스턴스 목록 조회");
         }
-
-        const msg = list
-          .map(
-            (rds: any) =>
-              `🔹 **${rds.id}**\n` +
-              `   • 상태: ${rds.status}\n` +
-              `   • 엔진: ${rds.engine}\n` +
-              `   • 인스턴스 클래스: ${rds.instanceClass}\n` +
-              `   • 엔드포인트: ${rds.endpoint}:${rds.port}\n` +
-              `   • 가용 영역: ${rds.availabilityZone}\n` +
-              `   • 스토리지: ${rds.allocatedStorage}GB\n` +
-              `   • Multi-AZ: ${rds.multiAZ ? "✅" : "❌"}\n` +
-              `   • 암호화: ${
-                rds.storageEncrypted ? "🔒" : "🔓"
-              }`
-          )
-          .join("\n\n");
-
-        await interaction.reply({
-          content: `📋 **RDS 인스턴스 목록 (${region})**\n\n${msg}`,
-          flags: 64,
-        });
       } else if (sub === "status") {
-        const region =
-          interaction.options.getString("region") ||
-          "ap-northeast-2";
-        const id = interaction.options.getString("id", true);
-        const status = await getRDSInstanceStatus(
-          userId,
-          id,
-          region
-        );
+        const handler = new InteractionHandler(interaction);
+        
+        try {
+          const region =
+            interaction.options.getString("region") ||
+            "ap-northeast-2";
+          const id = interaction.options.getString("id", true);
+          
+          // 즉시 응답
+          await handler.replyImmediately(`🔄 RDS 인스턴스 상태를 조회하고 있습니다...\n\n**리전:** ${region}\n**ID:** ${id}\n\n잠시만 기다려주세요.`);
+          
+          const status = await getRDSInstanceStatus(
+            userId,
+            id,
+            region
+          );
 
-        const statusEmoji =
-          status.status === "available"
-            ? "🟢"
-            : status.status === "stopped"
-            ? "🔴"
-            : status.status === "starting"
-            ? "🟡"
-            : status.status === "stopping"
-            ? "🟠"
-            : "⚪";
+          const statusEmoji =
+            status.status === "available"
+              ? "🟢"
+              : status.status === "stopped"
+              ? "🔴"
+              : status.status === "starting"
+              ? "🟡"
+              : status.status === "stopping"
+              ? "🟠"
+              : "⚪";
 
-        await interaction.reply({
-          content:
-            `${statusEmoji} **RDS 인스턴스 상태 (${region})**\n\n` +
-            `**ID:** ${status.id}\n` +
-            `**상태:** ${status.status}\n` +
-            `**엔진:** ${status.engine}\n` +
-            `**인스턴스 클래스:** ${status.instanceClass}\n` +
-            `**엔드포인트:** ${status.endpoint}:${status.port}\n` +
-            `**가용 영역:** ${status.availabilityZone}`,
-          flags: 64,
-        });
+          await handler.updateWithSuccess(`RDS 인스턴스 상태 조회 완료!\n\n${statusEmoji} **RDS 인스턴스 상태 (${region})**\n\n**ID:** ${status.id}\n**상태:** ${status.status}\n**엔진:** ${status.engine}\n**인스턴스 클래스:** ${status.instanceClass}\n**엔드포인트:** ${status.endpoint}:${status.port}\n**가용 영역:** ${status.availabilityZone}`);
+        } catch (error) {
+          await handler.updateWithError(error, "RDS 인스턴스 상태 조회");
+        }
       } else if (sub === "create") {
         const region = interaction.options.getString(
           "region",
@@ -477,18 +481,18 @@ export const rdsCommand: SlashCommand = {
           return;
         }
 
+        const handler = new InteractionHandler(interaction);
+        
         // 🚀 즉시 응답하여 Discord 타임아웃 방지
-        await interaction.reply({
-          content:
-            `⏳ **RDS 인스턴스 생성 시작**\n\n` +
-            `**리전:** ${region}\n` +
-            `**ID:** ${id}\n` +
-            `**엔진:** ${engine}\n` +
-            `**인스턴스 클래스:** ${instanceClass}\n` +
-            `**스토리지:** ${storage}GB\n\n` +
-            `🔄 생성 중입니다... 완료되면 알려드리겠습니다.`,
-          flags: 64,
-        });
+        await handler.replyImmediately(
+          `⏳ **RDS 인스턴스 생성 시작**\n\n` +
+          `**리전:** ${region}\n` +
+          `**ID:** ${id}\n` +
+          `**엔진:** ${engine}\n` +
+          `**인스턴스 클래스:** ${instanceClass}\n` +
+          `**스토리지:** ${storage}GB\n\n` +
+          `🔄 생성 중입니다... 완료되면 알려드리겠습니다.`
+        );
 
         try {
           // 백그라운드에서 RDS 인스턴스 생성
@@ -502,63 +506,48 @@ export const rdsCommand: SlashCommand = {
             region,
           });
 
-          // 성공 시 후속 메시지 전송
-          await interaction.followUp({
-            content:
-              `✅ **RDS 인스턴스 생성 완료!**\n\n` +
-              `**ID:** ${id}\n` +
-              `**엔진:** ${engine}\n` +
-              `**인스턴스 클래스:** ${instanceClass}\n` +
-              `**리전:** ${region}\n\n` +
-              `🎉 데이터베이스가 준비되었습니다!`,
-            flags: 64,
-          });
+          // 성공 시 메시지 업데이트
+          await handler.updateWithSuccess(
+            `RDS 인스턴스 생성 완료!\n\n` +
+            `**ID:** ${id}\n` +
+            `**엔진:** ${engine}\n` +
+            `**인스턴스 클래스:** ${instanceClass}\n` +
+            `**리전:** ${region}\n\n` +
+            `🎉 데이터베이스가 준비되었습니다!`
+          );
         } catch (createError: any) {
-          // 실패 시 에러 메시지 전송
-          await interaction.followUp({
-            content:
-              `❌ **RDS 인스턴스 생성 실패**\n\n` +
-              `**오류:** ${
-                createError.message || "알 수 없는 오류"
-              }\n\n` +
-              `다시 시도해주세요.`,
-            flags: 64,
-          });
+          // 실패 시 에러 메시지 업데이트
+          await handler.updateWithError(createError, "RDS 인스턴스 생성");
         }
       } else if (sub === "delete") {
-        const id = interaction.options.getString("id", true);
-        const skipSnapshot =
-          interaction.options.getBoolean("skip-snapshot") ??
-          true;
+        const handler = new InteractionHandler(interaction);
+        
+        try {
+          const id = interaction.options.getString("id", true);
+          const skipSnapshot =
+            interaction.options.getBoolean("skip-snapshot") ??
+            true;
 
-        await deleteRDSInstance(userId, id, skipSnapshot);
+          // 즉시 응답
+          await handler.replyImmediately(`🔄 RDS 인스턴스 삭제를 시작합니다...\n\n**ID:** ${id}\n\n잠시만 기다려주세요.`);
 
-        await interaction.reply({
-          content:
-            `🗑️ **RDS 인스턴스 삭제 요청 완료**\n\n` +
+          await deleteRDSInstance(userId, id, skipSnapshot);
+
+          await handler.updateWithSuccess(
+            `RDS 인스턴스 삭제 요청 완료!\n\n` +
             `**ID:** ${id}\n` +
             `**최종 스냅샷:** ${
               skipSnapshot ? "건너뜀" : "생성"
             }\n\n` +
-            `⏳ 삭제 작업에는 몇 분이 소요될 수 있습니다.`,
-          flags: 64,
-        });
+            `⏳ 삭제 작업에는 몇 분이 소요될 수 있습니다.`
+          );
+        } catch (error) {
+          await handler.updateWithError(error, "RDS 인스턴스 삭제");
+        }
       }
     } catch (err: any) {
-      console.error("RDS 명령어 오류:", err);
-
-      const errorMessage =
-        err.message || "알 수 없는 오류가 발생했습니다.";
-
-      if (!interaction.replied && !interaction.deferred) {
-        await interaction.reply({
-          content: `❌ **오류 발생**\n\n${errorMessage}`,
-          ephemeral: true,
-          flags: 64,
-        });
-      } else {
-        console.error("상호작용이 이미 응답됨:", errorMessage);
-      }
+      const handler = new InteractionHandler(interaction);
+      await handler.updateWithError(err, "RDS 명령어 실행");
     }
   },
   autocomplete: async (interaction: AutocompleteInteraction) => {

@@ -151,24 +151,29 @@ export const syncAWSData = async (userId: string, region: string = "ap-northeast
   const rds = awsInstance.RDS(region);
 
   try {
-    // VPC 데이터 동기화
-    const vpcResponse = await vpc.describeVpcs().promise();
-    const vpcResources: VPCResource[] = [];
+    // 모든 API 호출을 병렬로 실행하여 속도 향상
+    const [vpcResponse, ec2Response, rdsResponse, routeTableResponse] = await Promise.all([
+      vpc.describeVpcs().promise(),
+      ec2.describeInstances().promise(),
+      rds.describeDBInstances().promise(),
+      vpc.describeRouteTables().promise()
+    ]);
 
-    for (const vpcItem of vpcResponse.Vpcs || []) {
+    // VPC 데이터 동기화 (병렬 처리)
+    const vpcPromises = (vpcResponse.Vpcs || []).map(async (vpcItem: any) => {
       const vpcName = vpcItem.Tags?.find((tag: any) => tag.Key === 'Name')?.Value || '이름 없음';
       
-      // 인터넷 게이트웨이 조회
-      const igwResponse = await vpc.describeInternetGateways({
-        Filters: [{ Name: 'attachment.vpc-id', Values: [vpcItem.VpcId!] }]
-      }).promise();
+      // VPC별로 인터넷 게이트웨이와 서브넷을 병렬로 조회
+      const [igwResponse, subnetsResponse] = await Promise.all([
+        vpc.describeInternetGateways({
+          Filters: [{ Name: 'attachment.vpc-id', Values: [vpcItem.VpcId!] }]
+        }).promise(),
+        vpc.describeSubnets({
+          Filters: [{ Name: 'vpc-id', Values: [vpcItem.VpcId!] }]
+        }).promise()
+      ]);
       
       const internetGateway = igwResponse.InternetGateways?.[0]?.InternetGatewayId;
-
-      // 서브넷 조회
-      const subnetsResponse = await vpc.describeSubnets({
-        Filters: [{ Name: 'vpc-id', Values: [vpcItem.VpcId!] }]
-      }).promise();
 
       const subnets: SubnetResource[] = (subnetsResponse.Subnets || []).map((subnet: any) => ({
         name: subnet.Tags?.find((tag: any) => tag.Key === 'Name')?.Value || '이름 없음',
@@ -181,18 +186,19 @@ export const syncAWSData = async (userId: string, region: string = "ap-northeast
         vpcId: vpcItem.VpcId!
       }));
 
-      vpcResources.push({
+      return {
         name: vpcName,
         region,
         vpcId: vpcItem.VpcId!,
         vpcName,
         internetGateway,
         subnets
-      });
-    }
+      };
+    });
+
+    const vpcResources: VPCResource[] = await Promise.all(vpcPromises);
 
     // EC2 데이터 동기화
-    const ec2Response = await ec2.describeInstances().promise();
     const ec2Resources: EC2Resource[] = [];
 
     for (const reservation of ec2Response.Reservations || []) {
@@ -215,7 +221,6 @@ export const syncAWSData = async (userId: string, region: string = "ap-northeast
     }
 
     // RDS 데이터 동기화
-    const rdsResponse = await rds.describeDBInstances().promise();
     const rdsResources: RDSResource[] = (rdsResponse.DBInstances || []).map((instance : any) => ({
       name: instance.DBInstanceIdentifier!,
       region,
@@ -231,7 +236,6 @@ export const syncAWSData = async (userId: string, region: string = "ap-northeast
     }));
 
     // RouteTable 데이터 동기화
-    const routeTableResponse = await vpc.describeRouteTables().promise();
     const routeTableResources: RouteTableResource[] = [];
 
     for (const routeTable of routeTableResponse.RouteTables || []) {
