@@ -8,7 +8,14 @@ import {
     getSubnetById,
     loadUserData,
     VPCResource,
-    SubnetResource
+    SubnetResource,
+    addRouteTableResource,
+    removeRouteTableResource,
+    updateRouteTableRoutes,
+    updateRouteTableAssociations,
+    RouteTableResource,
+    Route,
+    RouteTableAssociation
 } from "../middleWare/resourceManager";
 
 export const createVPC = async (
@@ -333,6 +340,9 @@ export const deleteVPC = async (
                         
                         // 라우팅 테이블 삭제
                         await vpc.deleteRouteTable({ RouteTableId: routeTable.RouteTableId }).promise();
+                        
+                        // JSON 데이터에서 RouteTable 제거
+                        removeRouteTableResource(userId, routeTable.RouteTableId);
                     }
                 }
             }
@@ -399,6 +409,18 @@ export const addSubnetGroup = async (
 
         const response = await vpc.createRouteTable(params).promise();
 
+        // RouteTable JSON 데이터 추가
+        const routeTableResource: RouteTableResource = {
+            name: name,
+            region,
+            routeTableId: response.RouteTable?.RouteTableId!,
+            routeTableName: name,
+            vpcId,
+            routes: [],
+            associations: []
+        };
+        addRouteTableResource(userId, routeTableResource);
+
         return {
             success : true,
             routeTableId : response.RouteTable?.RouteTableId,
@@ -431,6 +453,21 @@ export const attachSubnetGroup = async (
         }
 
         const response = await vpc.associateRouteTable(params).promise();
+
+        // RouteTable 연결 정보를 JSON 데이터에 추가
+        const association: RouteTableAssociation = {
+            subnetId: subnetId,
+            associationId: response.AssociationId!,
+            associationState: response.AssociationState?.State || 'associated'
+        };
+
+        // 기존 연결 정보에 새로운 연결 추가
+        const data = loadUserData(userId);
+        const routeTableIndex = data.RouteTable.findIndex(rt => rt.routeTableId === routingTableId);
+        if (routeTableIndex >= 0) {
+            data.RouteTable[routeTableIndex].associations.push(association);
+            updateRouteTableAssociations(userId, routingTableId, data.RouteTable[routeTableIndex].associations);
+        }
 
         return {
             success : true,
@@ -607,9 +644,173 @@ export const addRoutingTableRule = async (
             await vpc.createRoute(routeParams).promise();
         }
 
+        // RouteTable 라우트 정보를 JSON 데이터에 추가/업데이트
+        const newRoute: Route = {
+            destination: destinationCidrBlock,
+            target: targetValue,
+            targetType: targetType,
+            state: 'active'
+        };
+
+        // 기존 라우트 정보에 새로운 라우트 추가
+        const data = loadUserData(userId);
+        const routeTableIndex = data.RouteTable.findIndex(rt => rt.routeTableId === routingTableId);
+        if (routeTableIndex >= 0) {
+            // 기존 동일 목적지 라우트가 있으면 교체, 없으면 추가
+            const existingRouteIndex = data.RouteTable[routeTableIndex].routes.findIndex(r => r.destination === destinationCidrBlock);
+            if (existingRouteIndex >= 0) {
+                data.RouteTable[routeTableIndex].routes[existingRouteIndex] = newRoute;
+            } else {
+                data.RouteTable[routeTableIndex].routes.push(newRoute);
+            }
+            updateRouteTableRoutes(userId, routingTableId, data.RouteTable[routeTableIndex].routes);
+        }
+
         return { success: true, routeTableId: routingTableId, destinationCidrBlock, targetType, targetValue, state: 'active' };
     } catch (error) {
         throw new Error(`라우팅 테이블 규칙 추가 실패: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+export const deleteRouteTable = async (
+    userId: string,
+    region: string,
+    routeTableId: string
+) => {
+    try {
+        const awsInstance = getUserAWSInstance(userId);
+        if (!awsInstance) {
+            throw new Error('AWS 인스턴스가 설정되지 않았습니다. /aws configure 명령어로 자격 증명을 설정하세요.');
+        }
+
+        const vpc = awsInstance.VPC(region);
+
+        // 1. 라우팅 테이블 정보 조회
+        const routeTableResponse = await vpc.describeRouteTables({
+            RouteTableIds: [routeTableId]
+        }).promise();
+
+        if (!routeTableResponse.RouteTables || routeTableResponse.RouteTables.length === 0) {
+            throw new Error('라우팅 테이블을 찾을 수 없습니다.');
+        }
+
+        const routeTable = routeTableResponse.RouteTables[0];
+
+        // 2. 연결된 서브넷 연결 해제
+        if (routeTable.Associations) {
+            for (const association of routeTable.Associations) {
+                if (association.RouteTableAssociationId && !association.Main) {
+                    await vpc.disassociateRouteTable({
+                        AssociationId: association.RouteTableAssociationId
+                    }).promise();
+                }
+            }
+        }
+
+        // 3. 라우팅 테이블 삭제
+        await vpc.deleteRouteTable({
+            RouteTableId: routeTableId
+        }).promise();
+
+        // 4. JSON 데이터에서 RouteTable 제거
+        removeRouteTableResource(userId, routeTableId);
+
+        return {
+            success: true,
+            routeTableId: routeTableId
+        };
+
+    } catch (error) {
+        throw new Error(`라우팅 테이블 삭제 실패: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+export const deleteRouteTableRule = async (
+    userId: string,
+    region: string,
+    routeTableId: string,
+    destinationCidrBlock: string
+) => {
+    try {
+        const awsInstance = getUserAWSInstance(userId);
+        if (!awsInstance) {
+            throw new Error('AWS 인스턴스가 설정되지 않았습니다. /aws configure 명령어로 자격 증명을 설정하세요.');
+        }
+
+        const vpc = awsInstance.VPC(region);
+
+        // 1. 라우트 삭제
+        const routeParams: any = {
+            RouteTableId: routeTableId
+        };
+
+        const isIpv6 = destinationCidrBlock.includes(':');
+        if (isIpv6) {
+            routeParams.DestinationIpv6CidrBlock = destinationCidrBlock;
+        } else {
+            routeParams.DestinationCidrBlock = destinationCidrBlock;
+        }
+
+        await vpc.deleteRoute(routeParams).promise();
+
+        // 2. JSON 데이터에서 라우트 제거
+        const data = loadUserData(userId);
+        const routeTableIndex = data.RouteTable.findIndex(rt => rt.routeTableId === routeTableId);
+        if (routeTableIndex >= 0) {
+            data.RouteTable[routeTableIndex].routes = data.RouteTable[routeTableIndex].routes.filter(
+                route => route.destination !== destinationCidrBlock
+            );
+            updateRouteTableRoutes(userId, routeTableId, data.RouteTable[routeTableIndex].routes);
+        }
+
+        return {
+            success: true,
+            routeTableId: routeTableId,
+            destinationCidrBlock: destinationCidrBlock
+        };
+
+    } catch (error) {
+        throw new Error(`라우팅 테이블 규칙 삭제 실패: ${error instanceof Error ? error.message : String(error)}`);
+    }
+};
+
+export const detachSubnetFromRouteTable = async (
+    userId: string,
+    region: string,
+    associationId: string
+) => {
+    try {
+        const awsInstance = await getUserAWSInstance(userId);
+
+        if(!awsInstance) {
+            throw new Error('AWS 인스턴스가 설정되지 않았습니다. /aws configure 명령어로 자격 증명을 설정하세요.');
+        }
+
+        const vpc = awsInstance.VPC(region);
+
+        // 1. 서브넷 연결 해제
+        await vpc.disassociateRouteTable({
+            AssociationId: associationId
+        }).promise();
+
+        // 2. JSON 데이터에서 연결 정보 제거
+        const data = loadUserData(userId);
+        for (const routeTable of data.RouteTable) {
+            const associationIndex = routeTable.associations.findIndex(assoc => assoc.associationId === associationId);
+            if (associationIndex >= 0) {
+                routeTable.associations.splice(associationIndex, 1);
+                updateRouteTableAssociations(userId, routeTable.routeTableId, routeTable.associations);
+                break;
+            }
+        }
+
+        return {
+            success: true,
+            associationId: associationId
+        };
+
+    } catch (error) {
+        throw new Error(`서브넷 연결 해제 실패: ${error instanceof Error ? error.message : String(error)}`);
     }
 };
 

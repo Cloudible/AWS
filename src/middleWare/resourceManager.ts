@@ -63,11 +63,36 @@ export interface RDSResource {
   subnetGroupName?: string;
 }
 
+export interface RouteTableResource {
+  name: string;
+  region: string;
+  routeTableId: string;
+  routeTableName: string;
+  vpcId: string;
+  routes: Route[];
+  associations: RouteTableAssociation[];
+}
+
+export interface Route {
+  destination: string;
+  target: string;
+  targetType: string;
+  state: string;
+}
+
+export interface RouteTableAssociation {
+  subnetId?: string;
+  gatewayId?: string;
+  associationId: string;
+  associationState: string;
+}
+
 // 통합 데이터 구조
 export interface IntegratedData {
   VPC: VPCResource[];
   EC2: EC2Resource[];
   RDS: RDSResource[];
+  RouteTable: RouteTableResource[];
   lastUpdated: string;
 }
 
@@ -80,6 +105,7 @@ export const loadUserData = (userId: string): IntegratedData => {
       VPC: [],
       EC2: [],
       RDS: [],
+      RouteTable: [],
       lastUpdated: new Date().toISOString()
     };
   }
@@ -93,6 +119,7 @@ export const loadUserData = (userId: string): IntegratedData => {
       VPC: [],
       EC2: [],
       RDS: [],
+      RouteTable: [],
       lastUpdated: new Date().toISOString()
     };
   }
@@ -203,10 +230,49 @@ export const syncAWSData = async (userId: string, region: string = "ap-northeast
       subnetGroupName: instance.DBSubnetGroup?.DBSubnetGroupName
     }));
 
+    // RouteTable 데이터 동기화
+    const routeTableResponse = await vpc.describeRouteTables().promise();
+    const routeTableResources: RouteTableResource[] = [];
+
+    for (const routeTable of routeTableResponse.RouteTables || []) {
+      const routeTableName = routeTable.Tags?.find((tag: any) => tag.Key === 'Name')?.Value || '이름 없음';
+      
+      const routes: Route[] = (routeTable.Routes || []).map((route: any) => ({
+        destination: route.DestinationCidrBlock || route.DestinationPrefixListId || 'local',
+        target: route.GatewayId || route.NatGatewayId || route.VpcPeeringConnectionId || route.TransitGatewayId || route.VpcEndpointId || route.NetworkInterfaceId || route.InstanceId || 'local',
+        targetType: route.GatewayId ? 'gateway' : 
+                   route.NatGatewayId ? 'nat-gateway' : 
+                   route.VpcPeeringConnectionId ? 'vpc-peering' : 
+                   route.TransitGatewayId ? 'transit-gateway' : 
+                   route.VpcEndpointId ? 'vpc-endpoint' : 
+                   route.NetworkInterfaceId ? 'network-interface' : 
+                   route.InstanceId ? 'instance' : 'local',
+        state: route.State || 'active'
+      }));
+
+      const associations: RouteTableAssociation[] = (routeTable.Associations || []).map((association: any) => ({
+        subnetId: association.SubnetId,
+        gatewayId: association.GatewayId,
+        associationId: association.RouteTableAssociationId!,
+        associationState: association.AssociationState?.State || 'associated'
+      }));
+
+      routeTableResources.push({
+        name: routeTableName,
+        region,
+        routeTableId: routeTable.RouteTableId!,
+        routeTableName,
+        vpcId: routeTable.VpcId!,
+        routes,
+        associations
+      });
+    }
+
     const integratedData: IntegratedData = {
       VPC: vpcResources,
       EC2: ec2Resources,
       RDS: rdsResources,
+      RouteTable: routeTableResources,
       lastUpdated: new Date().toISOString()
     };
 
@@ -221,11 +287,11 @@ export const syncAWSData = async (userId: string, region: string = "ap-northeast
 };
 
 // Autocomplete 함수들
-export const getVPCAutocompleteOptions = (userId: string): Array<{name: string, vpcId: string}> => {
+export const getVPCAutocompleteOptions = (userId: string): Array<{name: string, value: string}> => {
   const data = loadUserData(userId);
   return data.VPC.map(vpc => ({
-    name: `${vpc.name} (${vpc.vpcId})`,
-    vpcId: vpc.vpcId
+    name: vpc.name,
+    value: vpc.vpcId
   }));
 };
 
@@ -248,7 +314,7 @@ export const getSubnetAutocompleteOptions = (userId: string, vpcId?: string): Ar
   });
 
   return subnets.map(subnet => ({
-    name: `${subnet.name} (${subnet.cidr}) - ${subnet.subnetId}`,
+    name: `${subnet.name} (${subnet.cidr})`,
     value: subnet.subnetId
   }));
 };
@@ -256,7 +322,7 @@ export const getSubnetAutocompleteOptions = (userId: string, vpcId?: string): Ar
 export const getEC2AutocompleteOptions = (userId: string): Array<{name: string, value: string}> => {
   const data = loadUserData(userId);
   return data.EC2.map(ec2 => ({
-    name: `${ec2.name} (${ec2.instanceType}) - ${ec2.instanceId}`,
+    name: ec2.name,
     value: ec2.instanceId
   }));
 };
@@ -264,8 +330,22 @@ export const getEC2AutocompleteOptions = (userId: string): Array<{name: string, 
 export const getRDSAutocompleteOptions = (userId: string): Array<{name: string, value: string}> => {
   const data = loadUserData(userId);
   return data.RDS.map(rds => ({
-    name: `${rds.name} (${rds.engine}) - ${rds.status}`,
+    name: rds.name,
     value: rds.dbInstanceIdentifier
+  }));
+};
+
+export const getRouteTableAutocompleteOptions = (userId: string, vpcId?: string): Array<{name: string, value: string}> => {
+  const data = loadUserData(userId);
+  let routeTables = data.RouteTable;
+  
+  if (vpcId) {
+    routeTables = routeTables.filter(rt => rt.vpcId === vpcId);
+  }
+  
+  return routeTables.map(rt => ({
+    name: rt.name,
+    value: rt.routeTableId
   }));
 };
 
@@ -322,6 +402,21 @@ export const getRDSById = (userId: string, dbInstanceIdentifier: string): RDSRes
   return data.RDS.find(rds => rds.dbInstanceIdentifier === dbInstanceIdentifier);
 };
 
+export const getRouteTableByName = (userId: string, routeTableName: string): RouteTableResource | undefined => {
+  const data = loadUserData(userId);
+  return data.RouteTable.find(rt => rt.name === routeTableName);
+};
+
+export const getRouteTableById = (userId: string, routeTableId: string): RouteTableResource | undefined => {
+  const data = loadUserData(userId);
+  return data.RouteTable.find(rt => rt.routeTableId === routeTableId);
+};
+
+export const getRouteTablesByVPC = (userId: string, vpcId: string): RouteTableResource[] => {
+  const data = loadUserData(userId);
+  return data.RouteTable.filter(rt => rt.vpcId === vpcId);
+};
+
 // 데이터 업데이트 함수들 (리소스 생성/삭제 시 호출)
 export const addVPCResource = (userId: string, vpcResource: VPCResource): void => {
   const data = loadUserData(userId);
@@ -338,9 +433,10 @@ export const addVPCResource = (userId: string, vpcResource: VPCResource): void =
 export const removeVPCResource = (userId: string, vpcId: string): void => {
   const data = loadUserData(userId);
   data.VPC = data.VPC.filter(vpc => vpc.vpcId !== vpcId);
-  // VPC가 삭제되면 관련 EC2, RDS도 제거
+  // VPC가 삭제되면 관련 EC2, RDS, RouteTable도 제거
   data.EC2 = data.EC2.filter(ec2 => ec2.vpcId !== vpcId);
   data.RDS = data.RDS.filter(rds => rds.vpcId !== vpcId);
+  data.RouteTable = data.RouteTable.filter(rt => rt.vpcId !== vpcId);
   saveUserData(userId, data);
 };
 
@@ -364,13 +460,7 @@ export const removeEC2Resource = (userId: string, instanceId: string): void => {
 
 export const addRDSResource = (userId: string, rdsResource: RDSResource): void => {
   const data = loadUserData(userId);
-  // 기존 RDS가 있으면 업데이트, 없으면 추가
-  const existingIndex = data.RDS.findIndex(rds => rds.dbInstanceIdentifier === rdsResource.dbInstanceIdentifier);
-  if (existingIndex >= 0) {
-    data.RDS[existingIndex] = rdsResource;
-  } else {
-    data.RDS.push(rdsResource);
-  }
+  data.RDS.push(rdsResource);
   saveUserData(userId, data);
 };
 
@@ -378,6 +468,70 @@ export const removeRDSResource = (userId: string, dbInstanceIdentifier: string):
   const data = loadUserData(userId);
   data.RDS = data.RDS.filter(rds => rds.dbInstanceIdentifier !== dbInstanceIdentifier);
   saveUserData(userId, data);
+};
+
+export const addRouteTableResource = (userId: string, routeTableResource: RouteTableResource): void => {
+  const data = loadUserData(userId);
+  // 기존 RouteTable이 있으면 업데이트, 없으면 추가
+  const existingIndex = data.RouteTable.findIndex(rt => rt.routeTableId === routeTableResource.routeTableId);
+  if (existingIndex >= 0) {
+    data.RouteTable[existingIndex] = routeTableResource;
+  } else {
+    data.RouteTable.push(routeTableResource);
+  }
+  saveUserData(userId, data);
+};
+
+export const removeRouteTableResource = (userId: string, routeTableId: string): void => {
+  const data = loadUserData(userId);
+  data.RouteTable = data.RouteTable.filter(rt => rt.routeTableId !== routeTableId);
+  saveUserData(userId, data);
+};
+
+export const updateRouteTableRoutes = (userId: string, routeTableId: string, routes: Route[]): void => {
+  const data = loadUserData(userId);
+  const routeTableIndex = data.RouteTable.findIndex(rt => rt.routeTableId === routeTableId);
+  if (routeTableIndex >= 0) {
+    data.RouteTable[routeTableIndex].routes = routes;
+    saveUserData(userId, data);
+  }
+};
+
+export const updateRouteTableAssociations = (userId: string, routeTableId: string, associations: RouteTableAssociation[]): void => {
+  const data = loadUserData(userId);
+  const routeTableIndex = data.RouteTable.findIndex(rt => rt.routeTableId === routeTableId);
+  if (routeTableIndex >= 0) {
+    data.RouteTable[routeTableIndex].associations = associations;
+    saveUserData(userId, data);
+  }
+};
+
+// RouteTable 관련 유틸리티 함수들
+export const getRouteTableBySubnet = (userId: string, subnetId: string): RouteTableResource | undefined => {
+  const data = loadUserData(userId);
+  return data.RouteTable.find(rt => 
+    rt.associations.some(assoc => assoc.subnetId === subnetId)
+  );
+};
+
+export const getMainRouteTable = (userId: string, vpcId: string): RouteTableResource | undefined => {
+  const data = loadUserData(userId);
+  return data.RouteTable.find(rt => 
+    rt.vpcId === vpcId && 
+    rt.associations.some(assoc => assoc.associationState === 'associated' && !assoc.subnetId)
+  );
+};
+
+export const getRouteTableWithInternetAccess = (userId: string, vpcId: string): RouteTableResource | undefined => {
+  const data = loadUserData(userId);
+  return data.RouteTable.find(rt => 
+    rt.vpcId === vpcId && 
+    rt.routes.some(route => 
+      route.destination === '0.0.0.0/0' && 
+      route.targetType === 'gateway' && 
+      route.state === 'active'
+    )
+  );
 };
 
 // 데이터 정리 함수 (오래된 데이터 정리)
@@ -392,6 +546,7 @@ export const cleanupOldData = (userId: string, daysOld: number = 30): void => {
       VPC: [],
       EC2: [],
       RDS: [],
+      RouteTable: [],
       lastUpdated: new Date().toISOString()
     };
     saveUserData(userId, emptyData);
