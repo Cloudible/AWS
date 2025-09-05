@@ -1,7 +1,7 @@
 import { SlashCommand } from "../DTO/slashCommand.DTO";
 import { ApplicationCommandOptionType, Client, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
 import { addRoutingTableRule, addSubnet, addSubnetGroup, attachSubnetGroup, createVPC, deleteSubnet, deleteVPC, listRoutingTables, listSubnet, listUpVPC, deleteRouteTable, deleteRouteTableRule, detachSubnetFromRouteTable } from "../function/VPC.function";
-import { getVPCAutocompleteOptions, getSubnetAutocompleteOptions, getRouteTableAutocompleteOptions } from "../middleWare/resourceManager";
+import { getVPCAutocompleteOptions, getSubnetAutocompleteOptions, getRouteTableAutocompleteOptions, getInternetGatwayCompleteOptions } from "../middleWare/resourceManager";
 import { InteractionHandler } from "../middleWare/interactionHandler";
 
 export const vpcCommand : SlashCommand ={
@@ -911,7 +911,8 @@ export const vpcCommand : SlashCommand ={
                     name : "value",
                     description : "대상 값 (예: igw-xxxxx, nat-xxxxx 등)",
                     type : ApplicationCommandOptionType.String,
-                    required : true
+                    required : true,
+                    autocomplete : true
                 }
             ]
         },
@@ -1700,6 +1701,20 @@ export const vpcCommand : SlashCommand ={
                 
                 const discordOptions = filtered.map(option => ({
                     name: option.name,
+                    value: option.value
+                }));
+
+                await interaction.respond(discordOptions);
+            } else if(focusedOption.name === "value") {
+                const options = getInternetGatwayCompleteOptions(userId);
+
+                const filtered = options.filter(option => 
+                    option.name.toLowerCase().includes(focusedOption.value.toLowerCase()) ||
+                    option.value.toLowerCase().includes(focusedOption.value.toLowerCase())
+                ).slice(0, 25);
+                
+                const discordOptions = filtered.map(option => ({
+                    name: option.value,
                     value: option.value
                 }));
 
