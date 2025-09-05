@@ -1,6 +1,6 @@
 import path from "path";
 import fs from "fs";
-import { getUserAWSInstance } from "../function/AWS.function";
+import { getUserAWSInstance, validateCredentials } from "../function/AWS.function";
 
 // 통합 데이터 디렉토리
 const INTEGRATED_DATA_DIR = path.join(process.cwd(), "aws-integrated-data");
@@ -352,6 +352,20 @@ export const getRouteTableAutocompleteOptions = (userId: string, vpcId?: string)
     value: rt.routeTableId
   }));
 };
+
+export const getInternetGatwayCompleteOptions = (userId : string, vpcId? : string): Array<{name : string ,value : string}> => {
+  const data = loadUserData(userId);
+  let internetGatway = data.VPC;
+
+  if(vpcId) {
+    internetGatway = internetGatway.filter(vpc => vpc.vpcId === vpcId);
+  }
+
+  return internetGatway.filter(vpc => vpc.internetGateway !== undefined).map(vpc => ({
+    name : vpc.name,
+    value : vpc.internetGateway!
+  }));
+}
 
 // 특정 리소스 조회 함수들
 export const getVPCByName = (userId: string, vpcName: string): VPCResource | undefined => {
